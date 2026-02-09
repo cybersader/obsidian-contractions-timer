@@ -1659,6 +1659,12 @@
 	border-color: var(--interactive-accent);
 }
 
+.ct-control-btn:disabled {
+	opacity: 0.3;
+	cursor: not-allowed;
+	pointer-events: none;
+}
+
 .ct-control-btn--active {
 	border-color: var(--interactive-accent);
 	background: var(--interactive-accent);
