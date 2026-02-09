@@ -247,13 +247,14 @@ export class TimerWidget extends MarkdownRenderChild {
 			);
 		}
 
-		// Show pickers if resting and last contraction needs rating
+		// Show pickers if resting and last contraction still needs rating
+		// (keep visible until BOTH intensity and location are set)
 		if (this.phase === 'resting') {
 			const last = this.getLastCompletedContraction();
-			if (last && last.intensity === null) {
+			if (last && (last.intensity === null || last.location === null)) {
 				ratePrompt.removeClass('ct-hidden');
-				if (this.intensityPicker) this.intensityPicker.show();
-				if (this.locationPicker) this.locationPicker.show();
+				if (this.intensityPicker) this.intensityPicker.show(last.intensity);
+				if (this.locationPicker) this.locationPicker.show(last.location);
 			}
 		}
 
