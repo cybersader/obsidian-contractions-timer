@@ -8,13 +8,18 @@ import { formatDurationShort, formatInterval } from '../utils/formatters';
  */
 export class ProgressionInsight {
 	private el: HTMLElement;
+	private placeholderEl: HTMLElement;
+	private contentEl: HTMLElement;
 	private threshold: ThresholdConfig;
 	private gapThresholdMin: number;
 
 	constructor(parent: HTMLElement, threshold: ThresholdConfig, gapThresholdMin = 0) {
 		this.threshold = threshold;
 		this.gapThresholdMin = gapThresholdMin;
-		this.el = parent.createDiv({ cls: 'ct-insight ct-hidden' });
+		this.el = parent.createDiv({ cls: 'ct-insight' });
+		this.placeholderEl = this.el.createDiv({ cls: 'ct-section-placeholder ct-hidden' });
+		this.placeholderEl.createDiv({ text: 'Need 4+ completed contractions to analyze trends' });
+		this.contentEl = this.el.createDiv();
 	}
 
 	update(contractions: Contraction[]): void {
@@ -23,15 +28,15 @@ export class ProgressionInsight {
 		const completed = this.gapThresholdMin > 0
 			? getLatestSession(allCompleted, this.gapThresholdMin)
 			: allCompleted;
-		this.el.empty();
+		this.contentEl.empty();
 
 		if (completed.length < 4) {
-			this.el.addClass('ct-hidden');
+			this.placeholderEl.removeClass('ct-hidden');
 			return;
 		}
 
-		this.el.removeClass('ct-hidden');
-		this.el.createDiv({ cls: 'ct-section-label', text: 'Trend' });
+		this.placeholderEl.addClass('ct-hidden');
+		this.contentEl.createDiv({ cls: 'ct-section-label', text: 'Trend' });
 
 		// Calculate trends using session-filtered intervals
 		const durations = completed.map(getDurationSeconds);
@@ -52,7 +57,7 @@ export class ProgressionInsight {
 
 		// Interval trend row
 		if (intervalTrend && intervals.length >= 3) {
-			const row = this.el.createDiv({ cls: 'ct-insight-row' });
+			const row = this.contentEl.createDiv({ cls: 'ct-insight-row' });
 			const first = formatInterval(intervalTrend.firstValue);
 			const last = formatInterval(intervalTrend.lastValue);
 			const arrow = intervalTrend.direction === 'decreasing' ? '\u2193'
@@ -68,7 +73,7 @@ export class ProgressionInsight {
 
 		// Duration trend row
 		if (durationTrend && durations.length >= 3) {
-			const row = this.el.createDiv({ cls: 'ct-insight-row' });
+			const row = this.contentEl.createDiv({ cls: 'ct-insight-row' });
 			const first = formatDurationShort(durationTrend.firstValue);
 			const last = formatDurationShort(durationTrend.lastValue);
 			const arrow = durationTrend.direction === 'increasing' ? '\u2191'
@@ -85,14 +90,14 @@ export class ProgressionInsight {
 		// Estimated time to 5-1-1
 		const estimate = estimateTimeTo511(completed, this.threshold, this.gapThresholdMin);
 		if (estimate !== null) {
-			const estimateEl = this.el.createDiv({ cls: 'ct-insight-estimate' });
+			const estimateEl = this.contentEl.createDiv({ cls: 'ct-insight-estimate' });
 			if (estimate === 0) {
 				estimateEl.textContent = `${this.threshold.intervalMinutes}-1-1 criteria currently met`;
 			} else {
 				estimateEl.textContent = `At this pace, may reach ${this.threshold.intervalMinutes}-1-1 in ~${estimate} min`;
 			}
 			const disclaimerText = `Based on last ${intervals.length} interval${intervals.length !== 1 ? 's' : ''} (this session)`;
-			this.el.createDiv({
+			this.contentEl.createDiv({
 				cls: 'ct-insight-disclaimer',
 				text: disclaimerText,
 			});

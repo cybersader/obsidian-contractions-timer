@@ -16,6 +16,7 @@ export interface Contraction {
 	location: ContractionLocation | null;
 	notes: string;
 	phases?: ContractionPhases; // live 3-phase rating (opt-in)
+	untimed?: boolean; // true when logged retroactively without timing
 }
 
 export type ContractionLocation = 'front' | 'back' | 'wrapping';

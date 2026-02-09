@@ -1,5 +1,5 @@
 import type { TimerPhase } from '../types';
-import { formatDuration, formatDurationShort } from '../utils/formatters';
+import { formatDuration, formatDurationShort, formatRestTime } from '../utils/formatters';
 
 /**
  * Large timer display showing elapsed time during contraction
@@ -134,7 +134,7 @@ export class TimerDisplay {
 	/** Show rest time with context about the last contraction. */
 	showRest(restSeconds: number, lastDurationSec: number): void {
 		this.currentPhase = 'resting';
-		this.timeEl.textContent = formatDuration(restSeconds);
+		this.timeEl.textContent = formatRestTime(restSeconds);
 		this.labelEl.textContent = 'Time since last contraction';
 		this.subtitleEl.textContent = `Last contraction lasted ${formatDurationShort(lastDurationSec)}`;
 		this.el.className = 'ct-timer-display ct-timer-display--resting';
@@ -143,7 +143,7 @@ export class TimerDisplay {
 	/** Show paused state with frozen time. */
 	showPaused(restSeconds: number, lastDurationSec: number): void {
 		this.isPaused = true;
-		this.timeEl.textContent = formatDuration(restSeconds);
+		this.timeEl.textContent = formatRestTime(restSeconds);
 		this.labelEl.textContent = 'Time since last contraction';
 		this.subtitleEl.textContent = `Last contraction lasted ${formatDurationShort(lastDurationSec)}`;
 		this.el.className = 'ct-timer-display ct-timer-display--paused';

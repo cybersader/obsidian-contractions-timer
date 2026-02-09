@@ -11,6 +11,7 @@ import {
 	mapIntensityTo3,
 	generateId,
 	formatElapsedApprox,
+	formatRestTime,
 } from '../src/utils/formatters';
 
 describe('formatDuration', () => {
@@ -222,5 +223,47 @@ describe('generateId', () => {
 
 	it('returns 6-character IDs', () => {
 		expect(generateId().length).toBe(6);
+	});
+});
+
+describe('formatRestTime', () => {
+	it('formats zero seconds', () => {
+		expect(formatRestTime(0)).toBe('0:00');
+	});
+
+	it('formats under one minute', () => {
+		expect(formatRestTime(45)).toBe('0:45');
+	});
+
+	it('formats minutes in M:SS under one hour', () => {
+		expect(formatRestTime(2723)).toBe('45:23');
+	});
+
+	it('formats exactly 59 minutes', () => {
+		expect(formatRestTime(3540)).toBe('59:00');
+	});
+
+	it('switches to hours at 60 minutes', () => {
+		expect(formatRestTime(3600)).toBe('1h');
+	});
+
+	it('formats hours and minutes', () => {
+		expect(formatRestTime(8100)).toBe('2h 15m');
+	});
+
+	it('switches to days at 24 hours', () => {
+		expect(formatRestTime(86400)).toBe('1d');
+	});
+
+	it('formats days and hours', () => {
+		expect(formatRestTime(97200)).toBe('1d 3h');
+	});
+
+	it('handles negative values', () => {
+		expect(formatRestTime(-100)).toBe('0:00');
+	});
+
+	it('formats multiple days', () => {
+		expect(formatRestTime(259200)).toBe('3d');
 	});
 });

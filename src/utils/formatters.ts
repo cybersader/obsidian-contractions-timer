@@ -10,6 +10,29 @@ export function formatDuration(seconds: number): string {
 }
 
 /**
+ * Format a rest timer value with adaptive formatting:
+ * - 0-59 min:  M:SS  (e.g., "5:23", "45:09")
+ * - 60-1439 min (1-24h):  Xh Ym  (e.g., "2h 15m")
+ * - 1440+ min (24h+):  Xd Yh  (e.g., "1d 3h")
+ */
+export function formatRestTime(seconds: number): string {
+	if (seconds < 0) seconds = 0;
+	const totalMinutes = Math.floor(seconds / 60);
+	if (totalMinutes < 60) {
+		const secs = Math.floor(seconds % 60);
+		return `${totalMinutes}:${secs.toString().padStart(2, '0')}`;
+	}
+	if (totalMinutes < 1440) {
+		const hours = Math.floor(totalMinutes / 60);
+		const mins = totalMinutes % 60;
+		return mins === 0 ? `${hours}h` : `${hours}h ${mins}m`;
+	}
+	const days = Math.floor(totalMinutes / 1440);
+	const hours = Math.floor((totalMinutes % 1440) / 60);
+	return hours === 0 ? `${days}d` : `${days}d ${hours}h`;
+}
+
+/**
  * Format a duration in seconds to a short label.
  * Returns "Xm Ys" or "Xs" format.
  */

@@ -1,6 +1,6 @@
 import type { Contraction, SessionStats, TimerPhase } from '../types';
 import { getElapsedSeconds, getRestSeconds, getDurationSeconds } from '../data/calculations';
-import { formatDuration, formatDurationShort } from '../utils/formatters';
+import { formatDuration, formatDurationShort, formatRestTime } from '../utils/formatters';
 
 /**
  * Compact timer hero: single line with rest time / contraction time,
@@ -42,7 +42,7 @@ export class HeroCompactTimer {
 		const last = completed.length > 0 ? completed[completed.length - 1] : null;
 		const lastDur = last ? getDurationSeconds(last) : 0;
 
-		this.lineEl.textContent = `Rest: ${formatDuration(restSec)} \u00B7 Last: ${formatDurationShort(lastDur)}`;
+		this.lineEl.textContent = `Rest: ${formatRestTime(restSec)} \u00B7 Last: ${formatDurationShort(lastDur)}`;
 		this.el.className = 'ct-hero ct-hero-compact ct-hero-compact--resting';
 	}
 
@@ -59,7 +59,7 @@ export class HeroCompactTimer {
 			const completed = this.contractions.filter(c => c.end !== null);
 			const last = completed.length > 0 ? completed[completed.length - 1] : null;
 			const lastDur = last ? getDurationSeconds(last) : 0;
-			this.lineEl.textContent = `Rest: ${formatDuration(restSec)} \u00B7 Last: ${formatDurationShort(lastDur)}`;
+			this.lineEl.textContent = `Rest: ${formatRestTime(restSec)} \u00B7 Last: ${formatDurationShort(lastDur)}`;
 		}
 	}
 

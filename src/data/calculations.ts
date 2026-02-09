@@ -75,10 +75,11 @@ export function getSessionStats(
 
 	if (completed.length === 0) return empty;
 
-	// Durations
-	const durations = completed.map(getDurationSeconds);
-	const avgDuration = durations.reduce((a, b) => a + b, 0) / durations.length;
-	const lastDuration = durations[durations.length - 1];
+	// Durations (exclude untimed contractions — they have no meaningful duration)
+	const timed = completed.filter(c => !c.untimed);
+	const durations = timed.map(getDurationSeconds);
+	const avgDuration = durations.length > 0 ? durations.reduce((a, b) => a + b, 0) / durations.length : 0;
+	const lastDuration = durations.length > 0 ? durations[durations.length - 1] : 0;
 
 	// Intervals (need at least 2 contractions)
 	const intervals: number[] = [];
@@ -148,9 +149,10 @@ export function check511Rule(
 	const totalSpan = (lastStart - firstStart) / 60000;
 
 	if (recent.length < 3) {
-		const allDurations = completed.map(getDurationSeconds);
+		const timedCompleted = completed.filter(c => !c.untimed);
+		const allDurations = timedCompleted.map(getDurationSeconds);
 		const recentDurations = allDurations.slice(-3);
-		const avgDur = recentDurations.reduce((a, b) => a + b, 0) / recentDurations.length;
+		const avgDur = recentDurations.length > 0 ? recentDurations.reduce((a, b) => a + b, 0) / recentDurations.length : 0;
 
 		const allIntervals: number[] = [];
 		for (let i = 1; i < completed.length; i++) {
@@ -174,9 +176,10 @@ export function check511Rule(
 		};
 	}
 
-	// Calculate averages within the sustained window
-	const durations = recent.map(getDurationSeconds);
-	const avgDuration = durations.reduce((a, b) => a + b, 0) / durations.length;
+	// Calculate averages within the sustained window (durations from timed only)
+	const timedRecent = recent.filter(c => !c.untimed);
+	const durations = timedRecent.map(getDurationSeconds);
+	const avgDuration = durations.length > 0 ? durations.reduce((a, b) => a + b, 0) / durations.length : 0;
 
 	const intervals: number[] = [];
 	for (let i = 1; i < recent.length; i++) {
@@ -223,11 +226,15 @@ export function estimateStage(
 ): LaborStage | null {
 	if (completed.length < 2) return null;
 
-	// Use last 4 contractions for stage estimation
-	const recent = completed.slice(-4);
-	const durations = recent.map(getDurationSeconds);
+	// Durations from timed contractions only (untimed have no meaningful duration)
+	const timed = completed.filter(c => !c.untimed);
+	if (timed.length < 2) return null;
+	const recentTimed = timed.slice(-4);
+	const durations = recentTimed.map(getDurationSeconds);
 	const avgDur = durations.reduce((a, b) => a + b, 0) / durations.length;
 
+	// Intervals from all completed (untimed still represent real event timing)
+	const recent = completed.slice(-4);
 	const intervals: number[] = [];
 	for (let i = 1; i < recent.length; i++) {
 		intervals.push(getIntervalMinutes(recent[i], recent[i - 1]));
@@ -387,7 +394,9 @@ export function estimateTimeTo511(
 		: allCompleted;
 	if (completed.length < 4) return null;
 
-	const durations = completed.map(getDurationSeconds);
+	// Duration stats from timed contractions only (untimed have no meaningful duration)
+	const timed = completed.filter(c => !c.untimed);
+	const durations = timed.map(getDurationSeconds);
 	const intervals = gapThresholdMin > 0
 		? getSessionFilteredIntervals(completed, gapThresholdMin)
 		: (() => {

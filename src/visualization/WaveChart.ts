@@ -175,6 +175,37 @@ export class WaveChart {
 					? xOffset + ((startMs - seg.startMs) / seg.durationMs) * segWidth
 					: xOffset + segWidth / 2;
 
+				// Untimed contractions: render as dashed marker instead of bell curve
+				if (contraction.untimed) {
+					const intensity = contraction.intensity || 3;
+					const heightFraction = 0.2 + (intensity - 1) * 0.2;
+					const markerHeight = maxHeight * heightFraction * 0.4;
+					const color = this.getIntensityColor(intensity, 0.6);
+
+					ctx.save();
+					ctx.strokeStyle = color;
+					ctx.lineWidth = 1.5;
+					ctx.setLineDash([4, 3]);
+					ctx.beginPath();
+					ctx.moveTo(centerX, baseline);
+					ctx.lineTo(centerX, baseline - markerHeight);
+					ctx.stroke();
+					ctx.setLineDash([]);
+					ctx.restore();
+
+					// Diamond marker at top
+					const dy = 4;
+					ctx.fillStyle = color;
+					ctx.beginPath();
+					ctx.moveTo(centerX, baseline - markerHeight - dy);
+					ctx.lineTo(centerX + dy, baseline - markerHeight);
+					ctx.lineTo(centerX, baseline - markerHeight + dy);
+					ctx.lineTo(centerX - dy, baseline - markerHeight);
+					ctx.closePath();
+					ctx.fill();
+					continue;
+				}
+
 				const isActive = isContractionActive(contraction);
 				const durationSec = isActive
 					? getElapsedSeconds(contraction)

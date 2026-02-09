@@ -359,6 +359,58 @@ describe('estimateTimeTo511', () => {
 	});
 });
 
+describe('untimed contraction filtering', () => {
+	it('excludes untimed contractions from avgDurationSec', () => {
+		const contractions: Contraction[] = [
+			makeContraction(0, 45),
+			makeContraction(300, 55),
+			{ ...makeContraction(600, 0), untimed: true, end: new Date(Date.now() - 3600000 + 600 * 1000).toISOString() },
+		];
+		const stats = getSessionStats(contractions, defaultThreshold);
+		// totalContractions includes untimed
+		expect(stats.totalContractions).toBe(3);
+		// avgDuration should only be from the two timed contractions (45, 55) = 50
+		expect(stats.avgDurationSec).toBe(50);
+	});
+
+	it('includes untimed contractions in intervals', () => {
+		const contractions: Contraction[] = [
+			makeContraction(0, 45),
+			{ ...makeContraction(300, 0), untimed: true, end: new Date(Date.now() - 3600000 + 300 * 1000).toISOString() },
+			makeContraction(600, 55),
+		];
+		const stats = getSessionStats(contractions, defaultThreshold);
+		// Should have 2 intervals (all 3 completed contractions contribute)
+		expect(stats.avgIntervalMin).toBeCloseTo(5, 0);
+	});
+
+	it('excludes untimed from check511Rule duration check', () => {
+		const now = Date.now();
+		const contractions: Contraction[] = [
+			makeContraction(0, 65, 3, now - 3600000),
+			makeContraction(240, 65, 3, now - 3600000),
+			{ ...makeContraction(480, 0, 3, now - 3600000), untimed: true, end: new Date(now - 3600000 + 480 * 1000).toISOString() },
+			makeContraction(720, 65, 3, now - 3600000),
+		];
+		const result = check511Rule(contractions, defaultThreshold);
+		// Duration should be based on timed only (65s each), which meets the 60s threshold
+		expect(result.progress.durationOk).toBe(true);
+	});
+
+	it('excludes untimed from estimateStage duration calculation', () => {
+		// Mix of timed and untimed — only timed should affect stage estimation
+		const contractions: Contraction[] = [
+			makeContraction(0, 50),
+			makeContraction(240, 55),
+			{ ...makeContraction(480, 0), untimed: true, end: new Date(Date.now() - 3600000 + 480 * 1000).toISOString() },
+			makeContraction(720, 52),
+		];
+		// With 3 timed contractions (50, 55, 52) at 4-min intervals -> active
+		const stage = estimateStage(contractions);
+		expect(stage).toBe('active');
+	});
+});
+
 describe('getSessionFilteredIntervals', () => {
 	it('excludes gaps larger than threshold', () => {
 		const base = Date.now() - 7200000;

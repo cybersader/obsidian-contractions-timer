@@ -118,6 +118,22 @@ describe('assessBraxtonHicks', () => {
 		expect(strictResult.verdict).not.toBe('likely-real-labor');
 	});
 
+	it('excludes untimed contractions from duration trend', () => {
+		// Timed contractions have increasing duration (real labor sign)
+		// but include an untimed contraction that shouldn't affect the trend
+		const contractions: Contraction[] = [
+			makeContraction(0, 40, 2, 'back'),
+			makeContraction(360, 50, 3, 'wrapping'),
+			{ ...makeContraction(660, 0, 3, 'back'), untimed: true, end: new Date(Date.now() - 7200000 + 660 * 1000).toISOString() },
+			makeContraction(900, 55, 4, 'back'),
+			makeContraction(1140, 65, 5, 'wrapping'),
+		];
+		const result = assessBraxtonHicks(contractions, []);
+		// Should still detect "Lasting longer" as real-labor from timed (40, 50, 55, 65)
+		const durationCriterion = result.criteria.find(c => c.name === 'Lasting longer');
+		expect(durationCriterion?.result).toBe('real-labor');
+	});
+
 	it('respects custom regularity thresholds', () => {
 		// Somewhat regular contractions with slight variation (~5 min intervals)
 		const contractions = [

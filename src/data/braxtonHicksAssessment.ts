@@ -92,8 +92,9 @@ export function assessBraxtonHicks(
 	});
 
 	// --- 3. Getting longer (weight: 15) ---
-	// Real labor: duration trend increasing
-	const durations = completed.map(getDurationSeconds);
+	// Real labor: duration trend increasing (exclude untimed — no meaningful duration)
+	const timed = completed.filter(c => !c.untimed);
+	const durations = timed.map(getDurationSeconds);
 	const durationTrend = getTrend(durations);
 	criteria.push({
 		name: 'Lasting longer',

@@ -72,8 +72,12 @@ export class TimelineTable {
 			row.createEl('td', { text: formatTime(c.start), cls: 'ct-table-time' });
 
 			// Duration
-			const dur = getDurationSeconds(c);
-			row.createEl('td', { text: formatDurationShort(dur), cls: 'ct-table-duration' });
+			if (c.untimed) {
+				row.createEl('td', { text: 'Untimed', cls: 'ct-table-duration ct-table-untimed' });
+			} else {
+				const dur = getDurationSeconds(c);
+				row.createEl('td', { text: formatDurationShort(dur), cls: 'ct-table-duration' });
+			}
 
 			// Rest (end-to-start gap to next contraction)
 			if (i < completed.length - 1) {

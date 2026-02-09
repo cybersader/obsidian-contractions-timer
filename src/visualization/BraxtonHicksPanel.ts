@@ -39,6 +39,7 @@ function getCriterionTooltip(name: string, t: BHThresholdConfig): string | null 
  */
 export class BraxtonHicksPanel {
 	private el: HTMLElement;
+	private placeholderEl: HTMLElement;
 	private verdictEl: HTMLElement;
 	private criteriaList: HTMLElement;
 	private noteEl: HTMLElement;
@@ -49,6 +50,8 @@ export class BraxtonHicksPanel {
 		this.onOpenSettings = onOpenSettings;
 		this.thresholds = thresholds;
 		this.el = parent.createDiv({ cls: 'ct-bh-panel' });
+		this.placeholderEl = this.el.createDiv({ cls: 'ct-section-placeholder ct-hidden' });
+		this.placeholderEl.createDiv({ text: 'Need 4+ contractions to assess pattern' });
 		this.verdictEl = this.el.createDiv({ cls: 'ct-bh-verdict' });
 		this.criteriaList = this.el.createDiv({ cls: 'ct-bh-criteria' });
 		this.noteEl = this.el.createDiv({
@@ -60,10 +63,16 @@ export class BraxtonHicksPanel {
 	/** Update with new assessment data. */
 	update(assessment: BHAssessment): void {
 		if (assessment.requiresMore) {
-			this.el.addClass('ct-hidden');
+			this.placeholderEl.removeClass('ct-hidden');
+			this.verdictEl.addClass('ct-hidden');
+			this.criteriaList.addClass('ct-hidden');
+			this.noteEl.addClass('ct-hidden');
 			return;
 		}
-		this.el.removeClass('ct-hidden');
+		this.placeholderEl.addClass('ct-hidden');
+		this.verdictEl.removeClass('ct-hidden');
+		this.criteriaList.removeClass('ct-hidden');
+		this.noteEl.removeClass('ct-hidden');
 
 		// Verdict badge + description + settings gear
 		this.verdictEl.empty();

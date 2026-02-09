@@ -1680,6 +1680,18 @@
 	border-color: var(--color-red);
 }
 
+/* --- Section Placeholder (shown when not enough data) --- */
+.ct-section-placeholder {
+	text-align: center;
+	padding: 16px 12px;
+	color: var(--text-muted);
+	font-size: 0.85rem;
+	font-style: italic;
+	border: 1px dashed var(--background-modifier-border);
+	border-radius: 8px;
+	background: var(--background-primary);
+}
+
 /* --- Table Scroll Wrapper (mobile horizontal scroll) --- */
 .ct-table-scroll {
 	overflow-x: auto;
@@ -1742,6 +1754,131 @@
 
 .theme-dark .ct-pause-overlay--active {
 	background: rgba(0, 0, 0, 0.4);
+}
+
+/* --- Event Buttons --- */
+.ct-event-buttons {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.ct-event-btn {
+	width: 100%;
+	padding: 10px 16px;
+	border-radius: 8px;
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-primary);
+	color: var(--text-normal);
+	font-size: 0.85rem;
+	cursor: pointer;
+	transition: all 0.15s ease;
+}
+
+.ct-event-btn:hover {
+	border-color: var(--interactive-accent);
+}
+
+.ct-event-btn--confirmed {
+	border-color: var(--color-green);
+	background: rgba(74, 222, 128, 0.08);
+	color: var(--text-muted);
+}
+
+.ct-event-btn--undo {
+	width: auto;
+	padding: 4px 12px;
+	font-size: 0.75rem;
+	color: var(--text-muted);
+	border-color: var(--background-modifier-border);
+	background: var(--background-secondary);
+}
+
+.ct-event-btn--undo:hover {
+	color: var(--color-red);
+	border-color: var(--color-red);
+}
+
+.ct-event-btn--untimed {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	text-align: left;
+}
+
+.ct-untimed-icon {
+	font-size: 1.2rem;
+	flex-shrink: 0;
+	color: var(--text-muted);
+}
+
+.ct-untimed-label {
+	display: flex;
+	flex-direction: column;
+}
+
+.ct-untimed-title {
+	font-weight: 600;
+}
+
+.ct-untimed-subtitle {
+	font-size: 0.7rem;
+	color: var(--text-muted);
+}
+
+.ct-untimed-confirm {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin-top: 6px;
+}
+
+.ct-untimed-intensity {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+.ct-untimed-intensity-label {
+	font-size: 0.8rem;
+	color: var(--text-muted);
+}
+
+.ct-untimed-intensity-btns {
+	display: flex;
+	gap: 4px;
+}
+
+.ct-intensity-btn {
+	padding: 4px 12px;
+	border-radius: 6px;
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-primary);
+	color: var(--text-muted);
+	font-size: 0.78rem;
+	cursor: pointer;
+	transition: all 0.1s ease;
+}
+
+.ct-intensity-btn:hover {
+	border-color: var(--interactive-accent);
+	color: var(--text-normal);
+}
+
+.ct-intensity-btn--selected {
+	background: var(--interactive-accent);
+	border-color: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+.ct-intensity-btn--1 { border-left: 3px solid rgb(100, 180, 220); }
+.ct-intensity-btn--3 { border-left: 3px solid rgb(220, 200, 80); }
+.ct-intensity-btn--5 { border-left: 3px solid rgb(220, 80, 80); }
+
+.ct-table-untimed {
+	color: var(--text-muted);
+	font-style: italic;
 }
 
 /* --- Chart Overlay Legend --- */

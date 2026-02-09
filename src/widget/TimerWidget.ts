@@ -201,14 +201,20 @@ export class TimerWidget extends MarkdownRenderChild {
 			}
 		}
 
-		// 3. Event buttons (water break)
+		// 3. Event buttons (water break + untimed contraction)
 		if (this.settings.showWaterBreakButton) {
 			this.eventButtons = new EventButtons(
 				root,
 				(type) => this.recordEventByType(type)
 			);
 			this.eventButtons.setUndoCallback((type) => this.undoEvent(type));
+			this.eventButtons.setUntimedCallbacks(
+				() => this.logUntimedContraction(),
+				() => this.undoLastUntimed(),
+				(level) => this.setUntimedIntensity(level)
+			);
 			this.eventButtons.updateFromEvents(this.data.events);
+			this.eventButtons.setUntimedVisible(this.phase !== 'contracting');
 
 			// Water break info (shown if water already broke)
 			const waterEvent = this.data.events.find(e => e.type === 'water-break');
@@ -339,9 +345,6 @@ export class TimerWidget extends MarkdownRenderChild {
 			case 'trend-analysis': {
 				this.progressionInsight = new ProgressionInsight(body, this.settings.threshold, this.settings.chartGapThresholdMin);
 				this.progressionInsight.update(this.data.contractions);
-				// Hide when not enough data (<4 completed contractions)
-				const trendCount = this.data.contractions.filter(c => c.end !== null).length;
-				collapsible.setVisible(trendCount >= 4);
 				break;
 			}
 
@@ -506,6 +509,7 @@ export class TimerWidget extends MarkdownRenderChild {
 		this.dismissPickers();
 		if (this.liveRating) this.liveRating.begin();
 		this.sessionControls.setPauseEnabled(false);
+		if (this.eventButtons) this.eventButtons.setUntimedVisible(false);
 		this.bigButton.getEl().scrollIntoView({ behavior: 'smooth', block: 'center' });
 
 		await this.save();
@@ -543,6 +547,7 @@ export class TimerWidget extends MarkdownRenderChild {
 			this.timerDisplay.setPaused(false);
 		}
 		this.sessionControls.setPauseEnabled(true);
+		if (this.eventButtons) this.eventButtons.setUntimedVisible(true);
 
 		this.bigButton.setPhase('resting');
 		this.bigButton.setNextNumber(this.data.contractions.length + 1);
@@ -563,14 +568,72 @@ export class TimerWidget extends MarkdownRenderChild {
 		if (this.locationPicker) this.locationPicker.hide();
 	}
 
+	private async logUntimedContraction(): Promise<void> {
+		if (this.saving) return;
+
+		const now = new Date().toISOString();
+		const contraction: Contraction = {
+			id: generateId(),
+			start: now,
+			end: now,
+			intensity: null,
+			location: null,
+			notes: '',
+			untimed: true,
+		};
+
+		if (!this.data.sessionStartedAt) {
+			this.data.sessionStartedAt = now;
+		}
+
+		this.data.contractions.push(contraction);
+
+		if (this.phase === 'idle') {
+			this.phase = 'resting';
+			this.bigButton.setPhase('resting');
+		}
+		this.bigButton.setNextNumber(this.data.contractions.length + 1);
+
+		if (this.eventButtons) {
+			this.eventButtons.showUntimedConfirmation(now);
+		}
+
+		this.updateVisualizations();
+		await this.save();
+	}
+
+	private async undoLastUntimed(): Promise<void> {
+		const idx = this.data.contractions.map(c => c.untimed).lastIndexOf(true);
+		if (idx === -1) return;
+
+		this.data.contractions.splice(idx, 1);
+
+		if (this.data.contractions.length === 0) {
+			this.phase = 'idle';
+			this.bigButton.setPhase('idle');
+			this.data.sessionStartedAt = null;
+		} else {
+			this.bigButton.setNextNumber(this.data.contractions.length + 1);
+		}
+
+		this.updateVisualizations();
+		await this.save();
+	}
+
+	private async setUntimedIntensity(level: number): Promise<void> {
+		const last = [...this.data.contractions].reverse().find(c => c.untimed && c.intensity === null);
+		if (last) {
+			last.intensity = level;
+			this.updateBHAssessment();
+			if (this.waveChart) this.waveChart.update(this.data.contractions);
+			await this.save();
+		}
+	}
+
 	private updateVisualizations(): void {
 		if (this.summaryCards) this.summaryCards.update(this.data.contractions);
 		if (this.progressionInsight) {
 			this.progressionInsight.update(this.data.contractions);
-			// Hide entire collapsible when not enough data (<4 contractions)
-			const trendCollapsible = this.sectionCollapsibles.get('trend-analysis');
-			const completedCount = this.data.contractions.filter(c => c.end !== null).length;
-			if (trendCollapsible) trendCollapsible.setVisible(completedCount >= 4);
 		}
 		if (this.waveChart) this.waveChart.update(this.data.contractions);
 		if (this.timelineTable) this.timelineTable.update(this.data.contractions);
@@ -586,11 +649,6 @@ export class TimerWidget extends MarkdownRenderChild {
 
 	private updateHospitalAdvisor(): void {
 		if (!this.hospitalAdvisorPanel) return;
-
-		const completed = this.data.contractions.filter(c => c.end !== null);
-		// Hide entire collapsible when not enough data (<2 contractions)
-		const advisorCollapsible = this.sectionCollapsibles.get('hospital-advisor');
-		if (advisorCollapsible) advisorCollapsible.setVisible(completed.length >= 2);
 
 		const stats = getSessionStats(this.data.contractions, this.settings.threshold, this.settings.stageThresholds);
 		const est511 = estimateTimeTo511(this.data.contractions, this.settings.threshold, this.settings.chartGapThresholdMin);
@@ -629,9 +687,6 @@ export class TimerWidget extends MarkdownRenderChild {
 		if (!this.braxtonHicksPanel) return;
 		const assessment = assessBraxtonHicks(this.data.contractions, this.data.events, this.settings.bhThresholds, this.settings.chartGapThresholdMin);
 		this.braxtonHicksPanel.update(assessment);
-		// Hide entire collapsible when not enough data
-		const bhCollapsible = this.sectionCollapsibles.get('pattern-assessment');
-		if (bhCollapsible) bhCollapsible.setVisible(!assessment.requiresMore);
 	}
 
 	private updateContextualTips(): void {
@@ -782,6 +837,7 @@ export class TimerWidget extends MarkdownRenderChild {
 		this.paused = false;
 		this.sessionControls.setPaused(false);
 		this.timerDisplay.setPaused(false);
+		if (this.eventButtons) this.eventButtons.setUntimedVisible(true);
 		await this.save();
 	}
 
