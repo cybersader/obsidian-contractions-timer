@@ -549,7 +549,12 @@
 	gap: 6px;
 }
 
-.ct-intensity-buttons,
+.ct-intensity-buttons {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
 .ct-location-buttons {
 	display: flex;
 	gap: 6px;
@@ -559,7 +564,7 @@
 .ct-location-btn {
 	flex: 1;
 	min-height: 48px;
-	min-width: 48px;
+	min-width: 72px;
 	border: 2px solid var(--background-modifier-border);
 	border-radius: 10px;
 	background: var(--background-primary);

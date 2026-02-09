@@ -2,6 +2,11 @@
 
 All notable changes to the Obsidian Contractions Timer plugin will be documented in this file.
 
+## [0.1.14] - 2026-02-09
+
+### Fixed
+- Intensity buttons (5-level scale) now wrap to two rows on mobile instead of cramming all five on one line with truncated text.
+
 ## [0.1.13] - 2026-02-09
 
 ### Added
