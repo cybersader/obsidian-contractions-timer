@@ -13,6 +13,7 @@ import { LocationPicker } from './LocationPicker';
 import { SessionControls } from './SessionControls';
 import { CollapsibleSection } from './CollapsibleSection';
 import { EventButtons } from './EventButtons';
+import { UntimedPicker } from './UntimedPicker';
 import { ContextualTips } from './ContextualTips';
 import { LiveRatingOverlay } from './LiveRatingOverlay';
 import { WaveChart } from '../visualization/WaveChart';
@@ -79,6 +80,7 @@ export class TimerWidget extends MarkdownRenderChild {
 
 	// New components
 	private eventButtons: EventButtons | null = null;
+	private untimedPicker: UntimedPicker | null = null;
 	private contextualTips: ContextualTips | null = null;
 	private hospitalAdvisorPanel: HospitalAdvisorPanel | null = null;
 	private hospitalCollapsible: CollapsibleSection | null = null;
@@ -175,8 +177,35 @@ export class TimerWidget extends MarkdownRenderChild {
 		this.timerDisplay = new TimerDisplay(root);
 		this.timerDisplay.setPauseCallback((paused) => this.handlePause(paused));
 
-		// 2. Big button + optional peak button in a single row
+		// 2. Untimed confirmation area (appears above button row when a missed contraction is logged)
+		const untimedConfirmArea = root.createDiv();
+
+		// 3. Big button row: [Had one] [Start contraction] [Peak ▲]
 		const buttonRow = root.createDiv({ cls: 'ct-button-row' });
+
+		// "Had one" picker (left of BigButton)
+		this.untimedPicker = new UntimedPicker(
+			buttonRow, untimedConfirmArea,
+			{
+				onLog: (minutesAgo) => this.logUntimedContraction(minutesAgo),
+				onUndo: () => this.undoLastUntimed(),
+				onIntensity: (level) => this.setUntimedIntensity(level),
+				onStateChange: (state) => {
+					if (state === 'picking') {
+						this.bigButton.getEl().addClass('ct-hidden');
+						if (this.liveRating) (this.liveRating as any).el?.addClass?.('ct-hidden');
+					} else {
+						this.bigButton.getEl().removeClass('ct-hidden');
+					}
+				},
+			},
+			this.settings.hapticFeedback
+		);
+		// Hide "Had one" during contracting
+		if (this.phase === 'contracting') {
+			this.untimedPicker.setVisible(false);
+		}
+
 		this.bigButton = new BigButton(
 			buttonRow,
 			() => this.startContraction(),
@@ -186,11 +215,10 @@ export class TimerWidget extends MarkdownRenderChild {
 		this.bigButton.setPhase(this.phase);
 		this.bigButton.setNextNumber(this.data.contractions.length + 1);
 
-		// 2b. Live rating (inline to the right of Stop button during contractions)
+		// 3b. Live rating (inline to the right of Stop button during contractions)
 		if (this.settings.showLiveRating) {
 			this.liveRating = new LiveRatingOverlay(buttonRow, this.settings.hapticFeedback);
 			this.liveRating.setCallback((phases) => this.handleLiveRating(phases));
-			// Resume overlay if we're rebuilding mid-contraction (save triggers re-render)
 			if (this.phase === 'contracting') {
 				const active = this.data.contractions.find(isContractionActive);
 				if (active?.phases?.peakOffsetSec != null) {
@@ -201,20 +229,14 @@ export class TimerWidget extends MarkdownRenderChild {
 			}
 		}
 
-		// 3. Event buttons (water break + untimed contraction)
+		// 4. Event buttons (water break only)
 		if (this.settings.showWaterBreakButton) {
 			this.eventButtons = new EventButtons(
 				root,
 				(type) => this.recordEventByType(type)
 			);
 			this.eventButtons.setUndoCallback((type) => this.undoEvent(type));
-			this.eventButtons.setUntimedCallbacks(
-				() => this.logUntimedContraction(),
-				() => this.undoLastUntimed(),
-				(level) => this.setUntimedIntensity(level)
-			);
 			this.eventButtons.updateFromEvents(this.data.events);
-			this.eventButtons.setUntimedVisible(this.phase !== 'contracting');
 
 			// Water break info (shown if water already broke)
 			const waterEvent = this.data.events.find(e => e.type === 'water-break');
@@ -510,7 +532,7 @@ export class TimerWidget extends MarkdownRenderChild {
 		this.dismissPickers();
 		if (this.liveRating) this.liveRating.begin();
 		this.sessionControls.setPauseEnabled(false);
-		if (this.eventButtons) this.eventButtons.setUntimedVisible(false);
+		if (this.untimedPicker) this.untimedPicker.setVisible(false);
 		this.bigButton.getEl().scrollIntoView({ behavior: 'smooth', block: 'center' });
 
 		await this.save();
@@ -548,7 +570,7 @@ export class TimerWidget extends MarkdownRenderChild {
 			this.timerDisplay.setPaused(false);
 		}
 		this.sessionControls.setPauseEnabled(true);
-		if (this.eventButtons) this.eventButtons.setUntimedVisible(true);
+		if (this.untimedPicker) this.untimedPicker.setVisible(true);
 
 		this.bigButton.setPhase('resting');
 		this.bigButton.setNextNumber(this.data.contractions.length + 1);
@@ -569,14 +591,14 @@ export class TimerWidget extends MarkdownRenderChild {
 		if (this.locationPicker) this.locationPicker.hide();
 	}
 
-	private async logUntimedContraction(): Promise<void> {
+	private async logUntimedContraction(minutesAgo: number): Promise<void> {
 		if (this.saving) return;
 
-		const now = new Date().toISOString();
+		const timestamp = new Date(Date.now() - minutesAgo * 60000).toISOString();
 		const contraction: Contraction = {
 			id: generateId(),
-			start: now,
-			end: now,
+			start: timestamp,
+			end: timestamp,
 			intensity: null,
 			location: null,
 			notes: '',
@@ -584,10 +606,12 @@ export class TimerWidget extends MarkdownRenderChild {
 		};
 
 		if (!this.data.sessionStartedAt) {
-			this.data.sessionStartedAt = now;
+			this.data.sessionStartedAt = timestamp;
 		}
 
 		this.data.contractions.push(contraction);
+		// Keep contractions sorted chronologically (untimed may be in the past)
+		this.data.contractions.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
 
 		if (this.phase === 'idle') {
 			this.phase = 'resting';
@@ -595,8 +619,8 @@ export class TimerWidget extends MarkdownRenderChild {
 		}
 		this.bigButton.setNextNumber(this.data.contractions.length + 1);
 
-		if (this.eventButtons) {
-			this.eventButtons.showUntimedConfirmation(now);
+		if (this.untimedPicker) {
+			this.untimedPicker.showConfirmation(timestamp);
 		}
 
 		this.updateVisualizations();
@@ -617,6 +641,7 @@ export class TimerWidget extends MarkdownRenderChild {
 			this.bigButton.setNextNumber(this.data.contractions.length + 1);
 		}
 
+		if (this.untimedPicker) this.untimedPicker.reset();
 		this.updateVisualizations();
 		await this.save();
 	}
@@ -838,7 +863,7 @@ export class TimerWidget extends MarkdownRenderChild {
 		this.paused = false;
 		this.sessionControls.setPaused(false);
 		this.timerDisplay.setPaused(false);
-		if (this.eventButtons) this.eventButtons.setUntimedVisible(true);
+		if (this.untimedPicker) this.untimedPicker.reset();
 		await this.save();
 	}
 

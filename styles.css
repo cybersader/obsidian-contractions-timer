@@ -1799,38 +1799,125 @@
 	border-color: var(--color-red);
 }
 
-.ct-event-btn--untimed {
-	display: flex;
-	align-items: center;
-	gap: 10px;
-	text-align: left;
-}
-
-.ct-untimed-icon {
-	font-size: 1.2rem;
-	flex-shrink: 0;
-	color: var(--text-muted);
-}
-
-.ct-untimed-label {
+/* --- "Had one" Untimed Picker --- */
+.ct-had-one-btn {
+	flex: 0 0 auto;
 	display: flex;
 	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding: 8px 14px;
+	min-height: 60px;
+	border: 2px solid var(--background-modifier-border);
+	border-radius: 12px;
+	background: var(--background-primary);
+	color: var(--text-normal);
+	cursor: pointer;
+	transition: all 0.15s ease;
+	touch-action: manipulation;
+	-webkit-tap-highlight-color: transparent;
+	user-select: none;
 }
 
-.ct-untimed-title {
+.ct-had-one-btn:hover {
+	border-color: var(--interactive-accent);
+}
+
+.ct-had-one-btn:active {
+	transform: scale(0.96);
+}
+
+.ct-had-one-main {
+	font-size: 0.85rem;
 	font-weight: 600;
+	line-height: 1.2;
 }
 
-.ct-untimed-subtitle {
-	font-size: 0.7rem;
+.ct-had-one-sub {
+	font-size: 0.65rem;
 	color: var(--text-muted);
+	line-height: 1.2;
+	margin-top: 2px;
 }
 
-.ct-untimed-confirm {
+/* Time-ago pills (replaces BigButton when picking) */
+.ct-time-pills {
+	flex: 1;
 	display: flex;
 	flex-direction: column;
 	gap: 6px;
-	margin-top: 6px;
+	min-width: 0;
+}
+
+.ct-time-pills-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	font-size: 0.8rem;
+	color: var(--text-muted);
+	padding: 0 2px;
+}
+
+.ct-time-pill-cancel {
+	border: none;
+	background: none;
+	color: var(--text-muted);
+	font-size: 1rem;
+	cursor: pointer;
+	padding: 2px 6px;
+	border-radius: 4px;
+	transition: all 0.1s ease;
+}
+
+.ct-time-pill-cancel:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
+.ct-time-pills-grid {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 6px;
+}
+
+.ct-time-pill {
+	padding: 10px 8px;
+	border: 2px solid var(--background-modifier-border);
+	border-radius: 10px;
+	background: var(--background-primary);
+	color: var(--text-normal);
+	font-size: 0.82rem;
+	font-weight: 500;
+	cursor: pointer;
+	transition: all 0.15s ease;
+	touch-action: manipulation;
+	-webkit-tap-highlight-color: transparent;
+}
+
+.ct-time-pill:hover {
+	border-color: var(--interactive-accent);
+	color: var(--interactive-accent);
+}
+
+.ct-time-pill:active {
+	transform: scale(0.96);
+}
+
+/* Untimed confirmation area */
+.ct-untimed-confirm {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: 10px 12px;
+	border-radius: 8px;
+	background: rgba(74, 222, 128, 0.06);
+	border: 1px solid rgba(74, 222, 128, 0.2);
+}
+
+.ct-untimed-confirm-header {
+	font-size: 0.85rem;
+	font-weight: 600;
+	color: var(--color-green);
 }
 
 .ct-untimed-intensity {
@@ -1850,7 +1937,7 @@
 	gap: 4px;
 }
 
-.ct-intensity-btn {
+.ct-untimed-confirm .ct-intensity-btn {
 	padding: 4px 12px;
 	border-radius: 6px;
 	border: 1px solid var(--background-modifier-border);
@@ -1861,20 +1948,37 @@
 	transition: all 0.1s ease;
 }
 
-.ct-intensity-btn:hover {
+.ct-untimed-confirm .ct-intensity-btn:hover {
 	border-color: var(--interactive-accent);
 	color: var(--text-normal);
 }
 
-.ct-intensity-btn--selected {
+.ct-untimed-confirm .ct-intensity-btn--selected {
 	background: var(--interactive-accent);
 	border-color: var(--interactive-accent);
 	color: var(--text-on-accent);
 }
 
-.ct-intensity-btn--1 { border-left: 3px solid rgb(100, 180, 220); }
-.ct-intensity-btn--3 { border-left: 3px solid rgb(220, 200, 80); }
-.ct-intensity-btn--5 { border-left: 3px solid rgb(220, 80, 80); }
+.ct-untimed-confirm .ct-intensity-btn--1 { border-left: 3px solid rgb(100, 180, 220); }
+.ct-untimed-confirm .ct-intensity-btn--3 { border-left: 3px solid rgb(220, 200, 80); }
+.ct-untimed-confirm .ct-intensity-btn--5 { border-left: 3px solid rgb(220, 80, 80); }
+
+.ct-untimed-undo {
+	align-self: flex-start;
+	padding: 4px 12px;
+	font-size: 0.75rem;
+	color: var(--text-muted);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	background: var(--background-primary);
+	cursor: pointer;
+	transition: all 0.1s ease;
+}
+
+.ct-untimed-undo:hover {
+	color: var(--color-red);
+	border-color: var(--color-red);
+}
 
 .ct-table-untimed {
 	color: var(--text-muted);
