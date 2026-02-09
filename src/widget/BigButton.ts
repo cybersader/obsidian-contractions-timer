@@ -51,15 +51,18 @@ export class BigButton {
 	}
 
 	private updateText(): void {
+		const narrow = this.el.clientWidth < 180;
 		switch (this.phase) {
 			case 'idle':
-				this.el.textContent = 'Start contraction';
+				this.el.textContent = narrow ? 'Start' : 'Start contraction';
 				break;
 			case 'contracting':
 				this.el.textContent = 'Stop';
 				break;
 			case 'resting':
-				this.el.textContent = `Start contraction #${this.nextNumber}`;
+				this.el.textContent = narrow
+					? `Start #${this.nextNumber}`
+					: `Start contraction #${this.nextNumber}`;
 				break;
 		}
 	}

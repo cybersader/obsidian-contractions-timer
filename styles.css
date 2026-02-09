@@ -94,12 +94,12 @@
 	align-items: center;
 	justify-content: center;
 	gap: 4px;
-	background: var(--background-secondary-alt, rgba(0, 0, 0, 0.15));
-	backdrop-filter: blur(2px);
+	background: var(--background-secondary, rgba(30, 30, 30, 0.92));
+	backdrop-filter: blur(4px);
 	border-radius: 8px;
 	cursor: pointer;
 	z-index: 2;
-	opacity: 0.85;
+	opacity: 1;
 	transition: opacity 0.15s ease;
 }
 
@@ -1740,8 +1740,52 @@
 		min-width: 40px;
 	}
 	.ct-widget {
-		padding: 12px;
-		gap: 12px;
+		padding: 10px;
+		gap: 10px;
+	}
+
+	/* Compact "Had one" button on narrow screens */
+	.ct-had-one-btn {
+		padding: 6px 10px;
+		min-height: 72px;
+	}
+	.ct-had-one-main {
+		font-size: 0.75rem;
+	}
+	.ct-had-one-sub {
+		font-size: 0.58rem;
+	}
+
+	/* Smaller big button text */
+	.ct-big-button {
+		font-size: 1.2rem;
+		min-height: 72px;
+	}
+
+	/* Button row tighter gap */
+	.ct-button-row {
+		gap: 6px;
+	}
+
+	/* Collapsible header: smaller badge */
+	.ct-collapsible-badge {
+		font-size: 0.6rem;
+		padding: 1px 6px;
+		white-space: nowrap;
+	}
+
+	/* Smaller section title */
+	.ct-collapsible-title {
+		font-size: 0.72rem;
+	}
+
+	/* Time pills grid tighter */
+	.ct-time-pills-grid {
+		gap: 4px;
+	}
+	.ct-time-pill {
+		padding: 8px 6px;
+		font-size: 0.75rem;
 	}
 }
 
@@ -1749,6 +1793,17 @@
 	.ct-intensity-buttons,
 	.ct-location-buttons {
 		flex-wrap: wrap;
+	}
+
+	/* Stack button row vertically on very narrow screens */
+	.ct-button-row {
+		flex-direction: column;
+	}
+	.ct-had-one-btn {
+		min-height: auto;
+		flex-direction: row;
+		gap: 8px;
+		padding: 8px 12px;
 	}
 }
 

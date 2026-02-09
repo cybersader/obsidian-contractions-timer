@@ -2,6 +2,14 @@
 
 All notable changes to the Obsidian Contractions Timer plugin will be documented in this file.
 
+## [0.1.9] - 2026-02-09
+
+### Fixed
+- Mobile layout: compact "Had one" button, shorter Start button text ("Start #N") on narrow screens.
+- Pause overlay now fully opaque so timer text doesn't bleed through on mobile.
+- Section headers no longer truncate on narrow screens (smaller badge, tighter layout).
+- Very narrow screens (<280px) stack button row vertically.
+
 ## [0.1.8] - 2026-02-09
 
 ### Added
