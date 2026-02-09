@@ -175,6 +175,7 @@ export interface ContractionTimerSettings {
 	showIntensityPicker: boolean;
 	showLocationPicker: boolean;
 	timeFormat: '12h' | '24h';
+	showRestSeconds: boolean;
 	waveChartHeight: number;
 	theme: 'auto' | 'calming' | 'clinical';
 	hapticFeedback: boolean;
@@ -268,6 +269,7 @@ export const DEFAULT_SETTINGS: ContractionTimerSettings = {
 	showIntensityPicker: true,
 	showLocationPicker: true,
 	timeFormat: '12h',
+	showRestSeconds: false,
 	waveChartHeight: 150,
 	theme: 'auto',
 	hapticFeedback: true,

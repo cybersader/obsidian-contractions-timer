@@ -1827,12 +1827,12 @@
 /* --- "Had one" Untimed Picker --- */
 .ct-had-one-btn {
 	flex: 0 0 auto;
-	align-self: stretch;
 	display: flex;
 	flex-direction: column;
 	align-items: center;
 	justify-content: center;
 	padding: 8px 14px;
+	min-height: 100px;
 	border: 2px solid var(--background-modifier-border);
 	border-radius: 12px;
 	background: var(--background-primary);
@@ -1883,20 +1883,21 @@
 	padding: 0 2px;
 }
 
-.ct-time-pill-cancel {
+.ct-time-pills-header .ct-time-pill-cancel {
 	border: none;
 	background: none;
-	color: var(--text-muted);
-	font-size: 1rem;
+	color: #ef4444 !important;
+	font-size: 1.1rem;
+	font-weight: 600;
 	cursor: pointer;
-	padding: 2px 6px;
+	padding: 4px 8px;
 	border-radius: 4px;
 	transition: all 0.1s ease;
 }
 
-.ct-time-pill-cancel:hover {
-	background: var(--background-modifier-hover);
-	color: var(--text-normal);
+.ct-time-pills-header .ct-time-pill-cancel:hover {
+	background: rgba(239, 68, 68, 0.15);
+	color: #dc2626 !important;
 }
 
 .ct-time-pills-grid {

@@ -17,6 +17,7 @@ export class TimerDisplay {
 	private isPaused = false;
 	private currentPhase: TimerPhase = 'idle';
 	private longPressTimer: ReturnType<typeof setTimeout> | null = null;
+	showRestSeconds = false;
 
 	constructor(parent: HTMLElement) {
 		this.el = parent.createDiv({ cls: 'ct-timer-display' });
@@ -134,7 +135,7 @@ export class TimerDisplay {
 	/** Show rest time with context about the last contraction. */
 	showRest(restSeconds: number, lastDurationSec: number): void {
 		this.currentPhase = 'resting';
-		this.timeEl.textContent = formatRestTime(restSeconds);
+		this.timeEl.textContent = formatRestTime(restSeconds, this.showRestSeconds);
 		this.labelEl.textContent = 'Time since last contraction';
 		this.subtitleEl.textContent = `Last contraction lasted ${formatDurationShort(lastDurationSec)}`;
 		this.el.className = 'ct-timer-display ct-timer-display--resting';
@@ -143,7 +144,7 @@ export class TimerDisplay {
 	/** Show paused state with frozen time. */
 	showPaused(restSeconds: number, lastDurationSec: number): void {
 		this.isPaused = true;
-		this.timeEl.textContent = formatRestTime(restSeconds);
+		this.timeEl.textContent = formatRestTime(restSeconds, this.showRestSeconds);
 		this.labelEl.textContent = 'Time since last contraction';
 		this.subtitleEl.textContent = `Last contraction lasted ${formatDurationShort(lastDurationSec)}`;
 		this.el.className = 'ct-timer-display ct-timer-display--paused';

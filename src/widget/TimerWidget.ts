@@ -167,14 +167,18 @@ export class TimerWidget extends MarkdownRenderChild {
 				this.hero = actionHero;
 				break;
 			}
-			case 'compact-timer':
-				this.hero = new HeroCompactTimer(root);
+			case 'compact-timer': {
+				const compactHero = new HeroCompactTimer(root);
+				compactHero.showRestSeconds = this.settings.showRestSeconds;
+				this.hero = compactHero;
 				break;
+			}
 		}
 		this.updateHero();
 
 		// 1. Timer display (with hover-to-pause)
 		this.timerDisplay = new TimerDisplay(root);
+		this.timerDisplay.showRestSeconds = this.settings.showRestSeconds;
 		this.timerDisplay.setPauseCallback((paused) => this.handlePause(paused));
 
 		// 2. Untimed confirmation area (appears above button row when a missed contraction is logged)

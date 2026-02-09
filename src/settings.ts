@@ -341,6 +341,16 @@ export class ContractionTimerSettingsTab extends PluginSettingTab {
 				}));
 
 		new Setting(containerEl)
+			.setName('Show seconds on rest timer')
+			.setDesc('Show seconds in the rest timer when over 1 hour (e.g., "2h 15m 8s" instead of "2h 15m").')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.showRestSeconds)
+				.onChange(async (value) => {
+					this.plugin.settings.showRestSeconds = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
 			.setName('Wave chart height')
 			.setDesc('Height of the wave chart in pixels.')
 			.addDropdown(dropdown => {

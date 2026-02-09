@@ -251,6 +251,11 @@ describe('formatRestTime', () => {
 		expect(formatRestTime(8100)).toBe('2h 15m');
 	});
 
+	it('includes seconds when showSeconds is true', () => {
+		expect(formatRestTime(8117, true)).toBe('2h 15m 17s');
+		expect(formatRestTime(3600, true)).toBe('1h 0m 0s');
+	});
+
 	it('switches to days at 24 hours', () => {
 		expect(formatRestTime(86400)).toBe('1d');
 	});

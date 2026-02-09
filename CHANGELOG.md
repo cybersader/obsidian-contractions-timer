@@ -2,6 +2,15 @@
 
 All notable changes to the Obsidian Contractions Timer plugin will be documented in this file.
 
+## [0.1.8] - 2026-02-09
+
+### Added
+- **"Show seconds on rest timer" setting**: Optional toggle to display seconds in the rest timer when over 1 hour (off by default).
+
+### Fixed
+- Cancel X button in time-ago picker now always red (forced over Obsidian defaults).
+- "Had one" button height now matches the Start button.
+
 ## [0.1.7] - 2026-02-09
 
 ### Added
