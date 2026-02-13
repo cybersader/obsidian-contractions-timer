@@ -5,8 +5,8 @@
 	import { generateId } from '../../lib/labor-logic/formatters';
 	import { haptic } from '../../lib/haptic';
 
-	$: phase = $timerPhase;
-	$: contractionCount = $session.contractions.filter(c => c.end !== null).length;
+	let phase = $derived($timerPhase);
+	let contractionCount = $derived($session.contractions.filter(c => c.end !== null).length);
 
 	function startContraction() {
 		haptic(80);
@@ -49,7 +49,7 @@
 	class="big-button"
 	class:contracting={phase === 'contracting'}
 	class:resting={phase === 'resting'}
-	on:click={handleClick}
+	onclick={handleClick}
 >
 	<span class="big-button-text">
 		{#if phase === 'contracting'}
@@ -68,15 +68,15 @@
 		max-width: 320px;
 		margin: 0 auto;
 		display: block;
-		padding: 24px 32px;
-		border-radius: 20px;
-		border: 2px solid rgba(129, 140, 248, 0.3);
-		background: rgba(129, 140, 248, 0.08);
-		color: #818cf8;
-		font-size: 1.5rem;
+		padding: var(--space-5) var(--space-6);
+		border-radius: var(--radius-xl);
+		border: 2px solid var(--accent-muted);
+		background: var(--accent-muted);
+		color: var(--accent);
+		font-size: var(--text-2xl);
 		font-weight: 700;
 		cursor: pointer;
-		transition: all 0.2s ease;
+		transition: all var(--transition-base);
 		-webkit-tap-highlight-color: transparent;
 	}
 
@@ -85,21 +85,21 @@
 	}
 
 	.big-button.contracting {
-		background: rgba(248, 113, 113, 0.12);
-		border-color: rgba(248, 113, 113, 0.4);
-		color: #f87171;
+		background: var(--danger-muted);
+		border-color: var(--danger-muted);
+		color: var(--danger);
 		animation: pulse-red 1.5s ease-in-out infinite;
 	}
 
 	.big-button.resting {
-		background: rgba(74, 222, 128, 0.08);
-		border-color: rgba(74, 222, 128, 0.3);
-		color: #4ade80;
+		background: var(--success-muted);
+		border-color: var(--success-muted);
+		color: var(--success);
 	}
 
 	@keyframes pulse-red {
-		0%, 100% { box-shadow: 0 0 0 0 rgba(248, 113, 113, 0.2); }
-		50% { box-shadow: 0 0 0 12px rgba(248, 113, 113, 0); }
+		0%, 100% { box-shadow: 0 0 0 0 var(--danger-muted); }
+		50% { box-shadow: 0 0 0 12px transparent; }
 	}
 
 	.big-button-text {

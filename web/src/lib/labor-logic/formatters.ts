@@ -167,6 +167,48 @@ export function formatDurationRange(rangeMin: [number, number]): string {
 }
 
 /**
+ * Parse "M:SS", "MM:SS", or plain seconds into total seconds.
+ * Returns null if the input is invalid.
+ */
+export function parseDuration(raw: string): number | null {
+	raw = raw.trim();
+	const colonMatch = raw.match(/^(\d+):(\d{1,2})$/);
+	if (colonMatch) {
+		const mins = parseInt(colonMatch[1], 10);
+		const secs = parseInt(colonMatch[2], 10);
+		if (secs >= 60) return null;
+		return mins * 60 + secs;
+	}
+	const numMatch = raw.match(/^(\d+)s?$/);
+	if (numMatch) return parseInt(numMatch[1], 10);
+	return null;
+}
+
+/**
+ * Convert a Date to "HH:MM" string for <input type="time">.
+ */
+export function toTimeInputValue(d: Date): string {
+	const h = d.getHours().toString().padStart(2, '0');
+	const m = d.getMinutes().toString().padStart(2, '0');
+	return `${h}:${m}`;
+}
+
+/**
+ * Apply a "HH:MM" time input value to a base Date, preserving the date portion.
+ * Returns null if the input is invalid.
+ */
+export function applyTimeInput(base: Date, value: string): Date | null {
+	const match = value.match(/^(\d{1,2}):(\d{2})$/);
+	if (!match) return null;
+	const h = parseInt(match[1], 10);
+	const m = parseInt(match[2], 10);
+	if (h > 23 || m > 59) return null;
+	const result = new Date(base);
+	result.setHours(h, m, 0, 0);
+	return result;
+}
+
+/**
  * Generate a short random ID.
  */
 export function generateId(): string {

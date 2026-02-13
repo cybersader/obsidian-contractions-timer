@@ -5,13 +5,23 @@
 	import { haptic } from '../../lib/haptic';
 	import type { LaborEvent } from '../../lib/labor-logic/types';
 
-	$: waterBreak = $session.events.find(e => e.type === 'water-break') as LaborEvent | undefined;
-	$: showButton = $settings.showWaterBreakButton;
+	interface Props {
+		hideWaterBreak?: boolean;
+	}
+	let { hideWaterBreak = false }: Props = $props();
 
-	let showTimePicker = false;
-	let showStepper = false;
-	let customHours = 1;
-	let customMinutes = 0;
+	let waterBreak = $derived($session.events.find(e => e.type === 'water-break') as LaborEvent | undefined);
+	let mucusPlug = $derived($session.events.find(e => e.type === 'mucus-plug') as LaborEvent | undefined);
+	let bloodyShow = $derived($session.events.find(e => e.type === 'bloody-show') as LaborEvent | undefined);
+	let showButton = $derived($settings.showWaterBreakButton);
+
+	let showMoreEvents = $state(false);
+	let showTimePicker = $state(false);
+	let showStepper = $state(false);
+	let customHours = $state(1);
+	let customMinutes = $state(0);
+	let confirmingUndoType = $state<string | null>(null);
+	let undoTimeout: ReturnType<typeof setTimeout> | null = $state(null);
 
 	function recordWaterBreak() {
 		if (waterBreak) return;
@@ -27,14 +37,32 @@
 		}));
 	}
 
-	function undoWaterBreak() {
+	function startUndoConfirm(type: string) {
+		if ($settings.hapticFeedback) haptic(30);
+		confirmingUndoType = type;
+		undoTimeout = setTimeout(() => {
+			confirmingUndoType = null;
+			undoTimeout = null;
+		}, 5000);
+	}
+
+	function cancelUndo() {
+		confirmingUndoType = null;
+		if (undoTimeout) { clearTimeout(undoTimeout); undoTimeout = null; }
+	}
+
+	function confirmUndoEvent(type: string) {
+		if (undoTimeout) { clearTimeout(undoTimeout); undoTimeout = null; }
+		confirmingUndoType = null;
 		if ($settings.hapticFeedback) haptic(30);
 		session.update(s => ({
 			...s,
-			events: s.events.filter(e => e.type !== 'water-break'),
+			events: s.events.filter(e => e.type !== type),
 		}));
-		showTimePicker = false;
-		showStepper = false;
+		if (type === 'water-break') {
+			showTimePicker = false;
+			showStepper = false;
+		}
 	}
 
 	function openTimePicker() {
@@ -80,195 +108,271 @@
 		if ($settings.hapticFeedback) haptic(20);
 	}
 
-	$: customTotal = customHours * 60 + customMinutes;
-	$: customPreview = customTotal === 0
-		? 'Set a time above'
-		: `Around ${formatTimeShort(new Date(Date.now() - customTotal * 60000))}`;
+	function recordEvent(type: 'mucus-plug' | 'bloody-show') {
+		if ($session.events.some(e => e.type === type)) return;
+		if ($settings.hapticFeedback) haptic(50);
+		session.update(s => ({
+			...s,
+			events: [...s.events, {
+				id: generateId(),
+				type,
+				timestamp: new Date().toISOString(),
+				notes: '',
+			}],
+		}));
+	}
+
+	// undoEvent replaced by startUndoConfirm/confirmUndoEvent above
+
+	let customTotal = $derived(customHours * 60 + customMinutes);
+	let customPreview = $derived(
+		customTotal === 0
+			? 'Set a time above'
+			: `Around ${formatTimeShort(new Date(Date.now() - customTotal * 60000))}`
+	);
 </script>
 
 {#if showButton}
 	<div class="event-buttons">
-		{#if !waterBreak}
-			<button class="water-btn" on:click={recordWaterBreak}>
+		{#if !hideWaterBreak && !waterBreak}
+			<button class="water-btn" onclick={recordWaterBreak}>
 				<span class="water-icon">💧</span>
 				<span>Water broke</span>
 			</button>
-		{:else}
+		{:else if !hideWaterBreak}
 			<button class="water-btn water-btn--confirmed" disabled>
 				<span class="water-icon">💧</span>
-				<span>✓ Water broke at {formatTimeShort(new Date(waterBreak.timestamp))}</span>
+				<span>Water broke at {formatTimeShort(new Date(waterBreak.timestamp))}</span>
 			</button>
 
 			{#if !showTimePicker}
 				<div class="water-actions">
-					<button class="action-btn" on:click={openTimePicker}>✏️ Edit time</button>
-					<button class="action-btn action-btn--undo" on:click={undoWaterBreak}>Undo</button>
+					<button class="action-btn" onclick={openTimePicker}>Edit time</button>
+					{#if confirmingUndoType !== 'water-break'}
+						<button class="action-btn action-btn--undo" onclick={() => startUndoConfirm('water-break')}>Undo</button>
+					{:else}
+						<div class="undo-confirm-inline">
+							<button class="action-btn action-btn--confirm-yes" onclick={() => confirmUndoEvent('water-break')}>Remove</button>
+							<button class="action-btn action-btn--confirm-no" onclick={cancelUndo}>Cancel</button>
+						</div>
+					{/if}
 				</div>
 			{:else if !showStepper}
 				<div class="time-picker">
 					<div class="picker-header">
 						<span>When did it happen?</span>
-						<button class="picker-close" on:click={() => showTimePicker = false}>✕</button>
+						<button class="picker-close" onclick={() => showTimePicker = false}>✕</button>
 					</div>
 					<div class="picker-grid">
-						<button class="time-pill" on:click={() => pickTime(0)}>Just now</button>
-						<button class="time-pill" on:click={() => pickTime(5)}>~5 min ago</button>
-						<button class="time-pill" on:click={() => pickTime(15)}>~15 min ago</button>
-						<button class="time-pill" on:click={() => pickTime(30)}>~30 min ago</button>
-						<button class="time-pill time-pill--custom" on:click={openStepper}>Earlier...</button>
+						<button class="time-pill" onclick={() => pickTime(0)}>Just now</button>
+						<button class="time-pill" onclick={() => pickTime(5)}>~5 min ago</button>
+						<button class="time-pill" onclick={() => pickTime(15)}>~15 min ago</button>
+						<button class="time-pill" onclick={() => pickTime(30)}>~30 min ago</button>
+						<button class="time-pill time-pill--custom" onclick={openStepper}>Earlier...</button>
 					</div>
 				</div>
 			{:else}
 				<div class="time-picker">
 					<div class="picker-header">
 						<span>Set custom time</span>
-						<button class="picker-close" on:click={() => { showTimePicker = false; showStepper = false; }}>✕</button>
+						<button class="picker-close" onclick={() => { showTimePicker = false; showStepper = false; }}>✕</button>
 					</div>
 					<div class="stepper-row">
 						<div class="stepper-group">
-							<button class="stepper-btn" on:click={() => adjustHours(-1)}>−</button>
+							<button class="stepper-btn" onclick={() => adjustHours(-1)}>−</button>
 							<div class="stepper-value">{customHours}h</div>
-							<button class="stepper-btn" on:click={() => adjustHours(1)}>+</button>
+							<button class="stepper-btn" onclick={() => adjustHours(1)}>+</button>
 						</div>
 						<span class="stepper-sep">:</span>
 						<div class="stepper-group">
-							<button class="stepper-btn" on:click={() => adjustMinutes(-15)}>−</button>
+							<button class="stepper-btn" onclick={() => adjustMinutes(-15)}>−</button>
 							<div class="stepper-value">{customMinutes}m</div>
-							<button class="stepper-btn" on:click={() => adjustMinutes(15)}>+</button>
+							<button class="stepper-btn" onclick={() => adjustMinutes(15)}>+</button>
 						</div>
 					</div>
 					<div class="stepper-preview">{customPreview}</div>
-					<button class="stepper-log" on:click={() => pickTime(customTotal)}>Set time</button>
+					<button class="stepper-log" onclick={() => pickTime(customTotal)}>Set time</button>
 				</div>
 			{/if}
+		{/if}
+
+		<!-- More events toggle -->
+		<button class="more-events-btn" onclick={() => showMoreEvents = !showMoreEvents}>
+			{showMoreEvents ? 'Fewer events \u25B2' : 'More events \u25BC'}
+		</button>
+		{#if showMoreEvents}
+			<div class="more-events">
+				<!-- Mucus plug -->
+				{#if !mucusPlug}
+					<button class="event-btn event-btn--mucus" onclick={() => recordEvent('mucus-plug')}>
+						<span class="event-btn-icon">🔴</span>
+						<span>Mucus plug</span>
+					</button>
+				{:else}
+					<div class="event-confirmed">
+						<span class="event-btn-icon">🔴</span>
+						<span>Mucus plug at {formatTimeShort(new Date(mucusPlug.timestamp))}</span>
+						{#if confirmingUndoType !== 'mucus-plug'}
+						<button class="event-undo" onclick={() => startUndoConfirm('mucus-plug')}>Undo</button>
+					{:else}
+						<div class="undo-confirm-inline">
+							<button class="event-undo event-undo--confirm" onclick={() => confirmUndoEvent('mucus-plug')}>Remove</button>
+							<button class="event-undo event-undo--cancel" onclick={cancelUndo}>Cancel</button>
+						</div>
+					{/if}
+					</div>
+				{/if}
+
+				<!-- Bloody show -->
+				{#if !bloodyShow}
+					<button class="event-btn event-btn--bloody" onclick={() => recordEvent('bloody-show')}>
+						<span class="event-btn-icon">🩸</span>
+						<span>Bloody show</span>
+					</button>
+				{:else}
+					<div class="event-confirmed">
+						<span class="event-btn-icon">🩸</span>
+						<span>Bloody show at {formatTimeShort(new Date(bloodyShow.timestamp))}</span>
+						{#if confirmingUndoType !== 'bloody-show'}
+						<button class="event-undo" onclick={() => startUndoConfirm('bloody-show')}>Undo</button>
+					{:else}
+						<div class="undo-confirm-inline">
+							<button class="event-undo event-undo--confirm" onclick={() => confirmUndoEvent('bloody-show')}>Remove</button>
+							<button class="event-undo event-undo--cancel" onclick={cancelUndo}>Cancel</button>
+						</div>
+					{/if}
+					</div>
+				{/if}
+			</div>
 		{/if}
 	</div>
 {/if}
 
 <style>
 	.event-buttons {
-		margin-top: 16px;
+		margin-top: var(--space-4);
 	}
 
 	.water-btn {
 		width: 100%;
-		padding: 10px 16px;
-		border-radius: 10px;
-		border: 1px solid rgba(59, 130, 246, 0.25);
-		background: rgba(59, 130, 246, 0.06);
-		color: #60a5fa;
-		font-size: 0.85rem;
+		padding: var(--space-3) var(--space-4);
+		border-radius: var(--radius-md);
+		border: 1px solid var(--water-muted);
+		background: var(--water-muted);
+		color: var(--water);
+		font-size: var(--text-base);
 		font-weight: 500;
 		cursor: pointer;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		gap: 6px;
+		gap: var(--space-2);
 	}
 
 	.water-btn--confirmed {
-		border-color: rgba(59, 130, 246, 0.15);
-		background: rgba(59, 130, 246, 0.04);
-		color: rgba(96, 165, 250, 0.7);
+		border-color: var(--water-muted);
+		background: var(--border-muted);
+		color: var(--water);
+		opacity: 0.7;
 		cursor: default;
 	}
 
-	.water-icon { font-size: 1rem; }
+	.water-icon { font-size: var(--text-lg); }
 
 	.water-actions {
 		display: flex;
-		gap: 8px;
-		margin-top: 8px;
+		gap: var(--space-2);
+		margin-top: var(--space-2);
 		justify-content: center;
 	}
 
 	.action-btn {
-		padding: 6px 14px;
-		border-radius: 8px;
-		border: 1px solid rgba(255, 255, 255, 0.1);
-		background: rgba(255, 255, 255, 0.04);
-		color: rgba(255, 255, 255, 0.6);
-		font-size: 0.78rem;
+		padding: var(--space-2) var(--space-4);
+		border-radius: var(--radius-sm);
+		border: 1px solid var(--input-border);
+		background: var(--border-muted);
+		color: var(--text-secondary);
+		font-size: var(--text-sm);
 		cursor: pointer;
 	}
 
 	.action-btn--undo {
-		color: #f87171;
-		border-color: rgba(248, 113, 113, 0.2);
+		color: var(--danger);
+		border-color: var(--danger-muted);
 	}
 
 	.time-picker {
-		margin-top: 8px;
-		background: rgba(255, 255, 255, 0.03);
-		border: 1px solid rgba(255, 255, 255, 0.08);
-		border-radius: 12px;
-		padding: 12px;
+		margin-top: var(--space-2);
+		background: var(--bg-card);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-md);
+		padding: var(--space-3);
 	}
 
 	.picker-header {
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
-		margin-bottom: 10px;
-		font-size: 0.82rem;
-		color: rgba(255, 255, 255, 0.6);
+		margin-bottom: var(--space-3);
+		font-size: var(--text-base);
+		color: var(--text-secondary);
 	}
 
 	.picker-close {
 		background: none;
 		border: none;
-		color: rgba(255, 255, 255, 0.4);
-		font-size: 1rem;
+		color: var(--text-muted);
+		font-size: var(--text-lg);
 		cursor: pointer;
-		padding: 0 4px;
+		padding: 0 var(--space-1);
 	}
 
 	.picker-grid {
 		display: grid;
 		grid-template-columns: repeat(2, 1fr);
-		gap: 6px;
+		gap: var(--space-2);
 	}
 
 	.time-pill {
-		padding: 8px 12px;
-		border-radius: 8px;
-		border: 1px solid rgba(255, 255, 255, 0.1);
-		background: rgba(255, 255, 255, 0.04);
-		color: rgba(255, 255, 255, 0.7);
-		font-size: 0.78rem;
+		padding: var(--space-2) var(--space-3);
+		border-radius: var(--radius-sm);
+		border: 1px solid var(--input-border);
+		background: var(--border-muted);
+		color: var(--text-secondary);
+		font-size: var(--text-sm);
 		cursor: pointer;
 	}
 
-	.time-pill:active { background: rgba(255, 255, 255, 0.08); }
+	.time-pill:active { background: var(--border); }
 
 	.time-pill--custom {
 		grid-column: span 2;
-		border-color: rgba(129, 140, 248, 0.2);
-		color: #818cf8;
+		border-color: var(--accent-muted);
+		color: var(--accent);
 	}
 
 	.stepper-row {
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		gap: 8px;
-		margin-bottom: 8px;
+		gap: var(--space-2);
+		margin-bottom: var(--space-2);
 	}
 
 	.stepper-group {
 		display: flex;
 		align-items: center;
-		gap: 4px;
+		gap: var(--space-1);
 	}
 
 	.stepper-btn {
-		width: 32px;
-		height: 32px;
-		border-radius: 8px;
-		border: 1px solid rgba(255, 255, 255, 0.1);
-		background: rgba(255, 255, 255, 0.04);
-		color: rgba(255, 255, 255, 0.7);
-		font-size: 1rem;
+		width: var(--space-6);
+		height: var(--space-6);
+		border-radius: var(--radius-sm);
+		border: 1px solid var(--input-border);
+		background: var(--border-muted);
+		color: var(--text-secondary);
+		font-size: var(--text-lg);
 		cursor: pointer;
 		display: flex;
 		align-items: center;
@@ -276,34 +380,125 @@
 	}
 
 	.stepper-value {
-		min-width: 36px;
+		min-width: var(--btn-height-sm);
 		text-align: center;
 		font-family: 'JetBrains Mono', monospace;
-		font-size: 0.9rem;
-		color: rgba(255, 255, 255, 0.8);
+		font-size: var(--text-base);
+		color: var(--text-primary);
 	}
 
 	.stepper-sep {
-		color: rgba(255, 255, 255, 0.3);
-		font-size: 1.2rem;
+		color: var(--text-faint);
+		font-size: var(--text-xl);
 	}
 
 	.stepper-preview {
 		text-align: center;
-		font-size: 0.78rem;
-		color: rgba(255, 255, 255, 0.4);
-		margin-bottom: 8px;
+		font-size: var(--text-sm);
+		color: var(--text-muted);
+		margin-bottom: var(--space-2);
 	}
 
 	.stepper-log {
 		width: 100%;
-		padding: 8px;
-		border-radius: 8px;
-		border: 1px solid rgba(129, 140, 248, 0.3);
-		background: rgba(129, 140, 248, 0.08);
-		color: #818cf8;
-		font-size: 0.82rem;
+		padding: var(--space-2);
+		border-radius: var(--radius-sm);
+		border: 1px solid var(--accent-muted);
+		background: var(--accent-muted);
+		color: var(--accent);
+		font-size: var(--text-base);
 		font-weight: 600;
 		cursor: pointer;
+	}
+
+	.more-events-btn {
+		width: 100%;
+		margin-top: var(--space-2);
+		padding: var(--space-2);
+		border-radius: var(--radius-sm);
+		border: 1px dashed var(--border);
+		background: none;
+		color: var(--text-muted);
+		font-size: var(--text-sm);
+		cursor: pointer;
+	}
+
+	.more-events {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-2);
+		margin-top: var(--space-2);
+	}
+
+	.event-btn {
+		width: 100%;
+		padding: var(--space-3) var(--space-4);
+		border-radius: var(--radius-md);
+		border: 1px solid var(--border);
+		background: var(--border-muted);
+		color: var(--text-secondary);
+		font-size: var(--text-base);
+		cursor: pointer;
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+	}
+
+	.event-btn-icon { font-size: var(--text-base); }
+
+	.event-confirmed {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		padding: var(--space-2) var(--space-3);
+		border-radius: var(--radius-md);
+		background: var(--border-muted);
+		font-size: var(--text-sm);
+		color: var(--text-muted);
+	}
+
+	.event-undo {
+		margin-left: auto;
+		padding: var(--space-1) var(--space-3);
+		border-radius: var(--radius-sm);
+		border: 1px solid var(--danger-muted);
+		background: none;
+		color: var(--danger);
+		font-size: var(--text-sm);
+		cursor: pointer;
+	}
+
+	.undo-confirm-inline {
+		display: flex;
+		gap: var(--space-1);
+		margin-left: auto;
+		animation: undo-fade-in 150ms ease;
+	}
+
+	.action-btn--confirm-yes {
+		color: var(--danger);
+		border-color: var(--danger-muted);
+		background: var(--danger-muted);
+	}
+
+	.action-btn--confirm-no {
+		color: var(--text-muted);
+		border-color: var(--border);
+	}
+
+	.event-undo--confirm {
+		background: var(--danger-muted);
+		margin-left: 0;
+	}
+
+	.event-undo--cancel {
+		color: var(--text-muted);
+		border-color: var(--border);
+		margin-left: 0;
+	}
+
+	@keyframes undo-fade-in {
+		from { opacity: 0; transform: scale(0.9); }
+		to { opacity: 1; transform: scale(1); }
 	}
 </style>

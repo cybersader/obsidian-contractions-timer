@@ -4,16 +4,18 @@
 	import { getSessionStats, getTimeInCurrentStage } from '../../lib/labor-logic/calculations';
 	import { getLaborStageLabel, formatElapsedApprox, formatDurationRange } from '../../lib/labor-logic/formatters';
 
-	$: stats = getSessionStats($session.contractions, $settings.threshold, $settings.stageThresholds);
-	$: stage = stats.laborStage;
-	$: minutesInStage = stage ? getTimeInCurrentStage($session.contractions, $settings.stageThresholds) : 0;
+	let stats = $derived(getSessionStats($session.contractions, $settings.threshold, $settings.stageThresholds));
+	let stage = $derived(stats.laborStage);
+	let stageTime = $derived(stage ? getTimeInCurrentStage($session.contractions, $settings.stageThresholds) : null);
+	let minutesInStage = $derived(stageTime?.minutesInStage ?? 0);
 
-	$: config = stage ? $settings.stageThresholds[stage] : null;
-	$: range = config
-		? ($settings.parity === 'first-baby' ? config.typicalDurationFirstMin : config.typicalDurationSubsequentMin)
-		: [0, 0] as [number, number];
-	$: show = stage && !(range[0] === 0 && range[1] === 0);
-	$: progress = range[1] > 0 ? Math.min(1, minutesInStage / range[1]) : 0;
+	let config = $derived(stage ? $settings.stageThresholds[stage] : null);
+	let range = $derived.by((): [number, number] => {
+		if (!config) return [0, 0];
+		return $settings.parity === 'first-baby' ? config.typicalDurationFirstMin : config.typicalDurationSubsequentMin;
+	});
+	let show = $derived(stage && !(range[0] === 0 && range[1] === 0));
+	let progress = $derived(range[1] > 0 ? Math.min(1, minutesInStage / range[1]) : 0);
 </script>
 
 {#if show && stage}
@@ -34,38 +36,38 @@
 
 <style>
 	.stage-bar {
-		background: rgba(255, 255, 255, 0.02);
-		border: 1px solid rgba(255, 255, 255, 0.06);
-		border-radius: 12px;
-		padding: 12px;
-		margin-bottom: 12px;
+		background: var(--bg-card);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-md);
+		padding: var(--space-3);
+		margin-bottom: var(--space-3);
 	}
 
 	.stage-header {
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
-		margin-bottom: 8px;
+		margin-bottom: var(--space-2);
 	}
 
 	.stage-label {
-		font-size: 0.82rem;
+		font-size: var(--text-base);
 		font-weight: 600;
 	}
 
-	.stage--early { color: #4ade80; }
-	.stage--active { color: #fbbf24; }
-	.stage--transition { color: #f87171; }
-	.stage--pre-labor { color: rgba(255, 255, 255, 0.5); }
+	.stage--early { color: var(--success); }
+	.stage--active { color: var(--warning); }
+	.stage--transition { color: var(--danger); }
+	.stage--pre-labor { color: var(--text-muted); }
 
 	.stage-time {
-		font-size: 0.72rem;
-		color: rgba(255, 255, 255, 0.4);
+		font-size: var(--text-sm);
+		color: var(--text-muted);
 	}
 
 	.bar-track {
 		height: 6px;
-		background: rgba(255, 255, 255, 0.06);
+		background: var(--border);
 		border-radius: 3px;
 		overflow: hidden;
 	}
@@ -76,13 +78,13 @@
 		transition: width 0.5s ease;
 	}
 
-	.bar-fill--early { background: #4ade80; }
-	.bar-fill--active { background: #fbbf24; }
-	.bar-fill--transition { background: #f87171; }
+	.bar-fill--early { background: var(--success); }
+	.bar-fill--active { background: var(--warning); }
+	.bar-fill--transition { background: var(--danger); }
 
 	.stage-tip {
-		font-size: 0.68rem;
-		color: rgba(255, 255, 255, 0.3);
-		margin-top: 6px;
+		font-size: var(--text-xs);
+		color: var(--text-faint);
+		margin-top: var(--space-2);
 	}
 </style>

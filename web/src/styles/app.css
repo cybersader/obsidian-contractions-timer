@@ -1,3 +1,6 @@
+@import './tokens.css';
+@import './themes.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -8,52 +11,334 @@
 	--color-intensity-3: #dcc850;
 	--color-intensity-4: #e68c3c;
 	--color-intensity-5: #dc5050;
+	--header-height: 48px;
+	--nav-height: 64px;
 }
 
 html, body {
-	@apply bg-surface text-gray-100 h-full overflow-hidden;
+	background: var(--bg-primary);
+	color: var(--text-primary);
+	height: 100%;
+	overflow: hidden;
 	font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 	-webkit-tap-highlight-color: transparent;
 	touch-action: pan-y;
 	user-select: none;
 }
 
-/* Swiper fills the viewport minus bottom nav */
+/* Swiper fills the viewport minus header (+ safe area) and bottom nav (+ safe area) */
 .app-swiper {
-	height: calc(100dvh - 64px);
+	margin-top: calc(var(--header-height) + env(safe-area-inset-top, 0px));
+	height: calc(100dvh - var(--header-height) - var(--nav-height) - env(safe-area-inset-top, 0px));
 }
 
 .app-swiper .swiper-slide {
 	overflow-y: auto;
 	-webkit-overflow-scrolling: touch;
+	overscroll-behavior: none;
 }
 
 /* Bottom nav */
 .bottom-nav {
-	@apply fixed bottom-0 left-0 right-0 h-16 bg-surface-secondary border-t border-gray-700/30;
-	@apply flex items-center justify-around;
+	position: fixed;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	background: var(--nav-bg);
+	border-top: 1px solid var(--nav-border);
+	display: flex;
+	align-items: center;
+	justify-content: space-around;
+	height: var(--nav-height);
 	padding-bottom: env(safe-area-inset-bottom, 0px);
 	z-index: 50;
 }
 
 .nav-tab {
-	@apply flex flex-col items-center justify-center gap-0.5 px-3 py-1.5;
-	@apply text-gray-500 text-xs transition-colors duration-200;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: var(--space-1);
+	padding: var(--space-2) var(--space-3);
+	color: var(--nav-inactive);
+	font-size: var(--text-xs);
+	transition: color var(--transition-base);
+	min-width: 64px;
+	min-height: var(--btn-height-md);
+	background: none;
+	border: none;
+	cursor: pointer;
+	-webkit-tap-highlight-color: transparent;
 }
 
 .nav-tab.active {
-	@apply text-accent;
+	color: var(--accent);
 }
 
-.nav-tab svg {
-	@apply w-5 h-5;
+.nav-tab svg,
+.nav-tab :global(.lucide) {
+	width: var(--icon-md);
+	height: var(--icon-md);
 }
 
 /* Page containers */
 .page {
-	@apply p-4 pb-8;
+	padding: var(--space-4);
+	padding-bottom: var(--space-6);
+}
+
+/* Desktop page: center content with max-width */
+@media (min-width: 1024px) {
+	.page {
+		max-width: var(--desktop-content-max-width);
+		margin-inline: auto;
+		padding: var(--space-6) var(--space-5);
+		padding-bottom: var(--space-8);
+	}
 }
 
 .page-title {
-	@apply text-lg font-semibold text-gray-100 mb-4;
+	font-size: var(--text-lg);
+	font-weight: 600;
+	color: var(--text-primary);
+	margin-bottom: var(--space-4);
+}
+
+/* ============================================
+   Content layout — prevent full-width stretch on desktop
+   ============================================ */
+.content-container {
+	max-width: var(--content-max-width);
+	margin-inline: auto;
+	width: 100%;
+}
+
+/* ============================================
+   Button System — 4-tier hierarchy
+   All buttons: min 44px touch target (Apple HIG)
+   ============================================ */
+
+.btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: var(--space-2);
+	border: none;
+	border-radius: var(--radius-md);
+	font-size: var(--text-base);
+	font-weight: 500;
+	cursor: pointer;
+	transition: all var(--transition-fast);
+	min-height: var(--btn-height-md);
+	padding: var(--space-2) var(--space-5);
+	-webkit-tap-highlight-color: transparent;
+	user-select: none;
+	text-decoration: none;
+	line-height: 1;
+}
+
+.btn:active {
+	transform: scale(0.97);
+}
+
+.btn:disabled {
+	opacity: 0.5;
+	pointer-events: none;
+}
+
+/* Full-width variant */
+.btn-block {
+	width: 100%;
+	max-width: var(--content-max-width);
+	margin-inline: auto;
+}
+
+/* Size variants */
+.btn-sm {
+	min-height: var(--btn-height-sm);
+	font-size: var(--text-sm);
+	padding: var(--space-1) var(--space-3);
+	border-radius: var(--radius-sm);
+}
+
+.btn-lg {
+	min-height: var(--btn-height-lg);
+	font-size: var(--text-lg);
+	padding: var(--space-3) var(--space-6);
+}
+
+/* Primary — filled accent, bold CTA */
+.btn-primary {
+	background: var(--accent);
+	color: white;
+	font-weight: 600;
+}
+
+.btn-primary:active {
+	background: var(--accent-dim);
+}
+
+/* Secondary — outlined accent */
+.btn-secondary {
+	background: transparent;
+	color: var(--accent);
+	border: 1.5px solid var(--accent);
+}
+
+.btn-secondary:active {
+	background: var(--accent-muted);
+}
+
+/* Ghost — text-only with hover state */
+.btn-ghost {
+	background: transparent;
+	color: var(--text-secondary);
+}
+
+.btn-ghost:active {
+	background: var(--bg-card-hover);
+}
+
+/* Danger — destructive actions */
+.btn-danger {
+	background: transparent;
+	color: var(--danger);
+	border: 1.5px solid var(--danger);
+}
+
+.btn-danger:active {
+	background: var(--danger-muted);
+}
+
+/* Water — special water-break event */
+.btn-water {
+	background: transparent;
+	color: var(--water);
+	border: 1.5px solid var(--water);
+}
+
+.btn-water:active {
+	background: var(--water-muted);
+}
+
+/* Icon-only button variant */
+.btn-icon {
+	padding: var(--space-2);
+	min-width: var(--btn-height-md);
+}
+
+/* ============================================
+   Card component
+   ============================================ */
+.card {
+	background: var(--bg-card);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	padding: var(--space-4);
+}
+
+.card-elevated {
+	background: var(--bg-secondary);
+	box-shadow: var(--shadow-sm);
+}
+
+/* ============================================
+   Section headings
+   ============================================ */
+.section-title {
+	font-size: var(--text-sm);
+	font-weight: 600;
+	color: var(--text-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	margin-bottom: var(--space-3);
+}
+
+/* ============================================
+   Lucide icon integration helpers
+   ============================================ */
+:global(.lucide) {
+	flex-shrink: 0;
+}
+
+/* ============================================
+   Focus indicators (keyboard navigation)
+   ============================================ */
+:global(:focus-visible) {
+	outline: 2px solid var(--accent);
+	outline-offset: 2px;
+	border-radius: var(--radius-sm);
+}
+
+:global(button:focus-visible),
+:global(a:focus-visible),
+:global(input:focus-visible),
+:global(select:focus-visible),
+:global([role="tab"]:focus-visible) {
+	outline: 2px solid var(--accent);
+	outline-offset: 2px;
+}
+
+/* Remove outline for mouse/touch interactions */
+:global(:focus:not(:focus-visible)) {
+	outline: none;
+}
+
+/* ============================================
+   Smooth theme transitions
+   ============================================ */
+html {
+	transition: background-color 300ms ease, color 300ms ease;
+}
+
+/* ============================================
+   Reduced motion preference
+   ============================================ */
+@media (prefers-reduced-motion: reduce) {
+	*, *::before, *::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+		scroll-behavior: auto !important;
+	}
+}
+
+/* ============================================
+   Empty state pattern
+   ============================================ */
+.empty-state {
+	text-align: center;
+	padding: var(--space-7) var(--space-4);
+	color: var(--text-muted);
+	font-size: var(--text-base);
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: var(--space-3);
+}
+
+.empty-state-icon {
+	width: 56px;
+	height: 56px;
+	border-radius: var(--radius-lg);
+	background: var(--bg-card);
+	border: 1px solid var(--border);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--text-faint);
+}
+
+.empty-state-title {
+	font-size: var(--text-lg);
+	font-weight: 600;
+	color: var(--text-secondary);
+}
+
+.empty-state-hint {
+	font-size: var(--text-sm);
+	color: var(--text-faint);
+	max-width: 280px;
+	line-height: 1.5;
 }

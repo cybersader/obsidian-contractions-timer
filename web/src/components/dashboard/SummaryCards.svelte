@@ -4,7 +4,7 @@
 	import { getSessionStats } from '../../lib/labor-logic/calculations';
 	import { formatDurationShort, formatInterval } from '../../lib/labor-logic/formatters';
 
-	$: stats = getSessionStats($session.contractions, $settings.threshold, $settings.stageThresholds);
+	let stats = $derived(getSessionStats($session.contractions, $settings.threshold, $settings.stageThresholds));
 </script>
 
 <div class="summary-grid">
@@ -30,28 +30,28 @@
 	.summary-grid {
 		display: grid;
 		grid-template-columns: repeat(3, 1fr);
-		gap: 8px;
-		margin-bottom: 16px;
+		gap: var(--space-2);
+		margin-bottom: var(--space-4);
 	}
 
 	.summary-card {
-		background: rgba(255, 255, 255, 0.03);
-		border: 1px solid rgba(255, 255, 255, 0.06);
-		border-radius: 12px;
-		padding: 12px 8px;
+		background: var(--bg-card);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-md);
+		padding: var(--space-3) var(--space-2);
 		text-align: center;
 	}
 
 	.card-value {
 		font-family: 'JetBrains Mono', ui-monospace, monospace;
-		font-size: 1.25rem;
+		font-size: var(--text-xl);
 		font-weight: 600;
-		color: rgba(255, 255, 255, 0.9);
+		color: var(--text-primary);
 	}
 
 	.card-label {
-		font-size: 0.68rem;
-		color: rgba(255, 255, 255, 0.4);
-		margin-top: 2px;
+		font-size: var(--text-xs);
+		color: var(--text-muted);
+		margin-top: var(--space-1);
 	}
 </style>

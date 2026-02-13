@@ -1,0 +1,13 @@
+version: "3"
+services:
+  signaling:
+    image: node:20-alpine
+    working_dir: /app
+    command: ["sh", "-c", "npm install ws && node server.js"]
+    ports:
+      - "4444:4444"
+    environment:
+      - PORT=4444
+    volumes:
+      - ./server.js:/app/server.js:ro
+    restart: unless-stopped

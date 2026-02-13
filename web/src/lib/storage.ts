@@ -1,7 +1,19 @@
+import { writable } from 'svelte/store';
 import type { SessionData, ContractionTimerSettings } from './labor-logic/types';
 
 const SESSION_KEY = 'contractions-timer-data';
 const SETTINGS_KEY = 'contractions-timer-settings';
+
+/** Reactive store for storage errors. Components can subscribe to show warnings. */
+export const storageError = writable<string | null>(null);
+
+let errorTimeout: ReturnType<typeof setTimeout> | undefined;
+
+function setStorageError(msg: string) {
+	storageError.set(msg);
+	clearTimeout(errorTimeout);
+	errorTimeout = setTimeout(() => storageError.set(null), 5000);
+}
 
 export function loadSession(): SessionData | null {
 	try {
@@ -16,7 +28,9 @@ export function loadSession(): SessionData | null {
 export function saveSession(data: SessionData): void {
 	try {
 		localStorage.setItem(SESSION_KEY, JSON.stringify(data));
-	} catch { /* quota exceeded, etc. */ }
+	} catch (e) {
+		setStorageError('Could not save session — storage may be full');
+	}
 }
 
 export function loadSettings(): Partial<ContractionTimerSettings> | null {
@@ -32,7 +46,9 @@ export function loadSettings(): Partial<ContractionTimerSettings> | null {
 export function saveSettings(s: ContractionTimerSettings): void {
 	try {
 		localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
-	} catch { /* quota exceeded */ }
+	} catch (e) {
+		setStorageError('Could not save settings — storage may be full');
+	}
 }
 
 export function clearAllData(): void {
@@ -49,9 +65,15 @@ export function exportData(): string {
 
 export function importData(json: string): SessionData {
 	const parsed = JSON.parse(json);
-	if (parsed.session) {
-		saveSession(parsed.session);
-		return parsed.session;
+	if (!parsed.session || typeof parsed.session !== 'object') {
+		throw new Error('Invalid data: missing session object');
 	}
-	throw new Error('Invalid data format');
+	if (!Array.isArray(parsed.session.contractions)) {
+		throw new Error('Invalid data: session.contractions must be an array');
+	}
+	if (!Array.isArray(parsed.session.events)) {
+		throw new Error('Invalid data: session.events must be an array');
+	}
+	saveSession(parsed.session);
+	return parsed.session;
 }

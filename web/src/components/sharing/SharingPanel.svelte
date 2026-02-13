@@ -1,0 +1,1545 @@
+<script lang="ts">
+	import { peerState, isP2PActive, peerCount } from '../../lib/stores/p2p';
+	import {
+		startSharing, joinSharing, stopSharing, getShareUrl,
+		startPrivateHost, completePrivateHost, joinPrivateOffer, getPrivateOfferUrl, getPrivateAnswerUrl,
+	} from '../../lib/p2p/sync-bridge';
+	import { isValidRoomCode, generateDisplayName, generatePassphrase } from '../../lib/p2p/room-codes';
+	import { getRoomUrl, SIGNALING_PRESETS, getStoredSignalingUrl, setStoredSignalingUrl } from '../../lib/p2p/quick-connect';
+	import {
+		STUN_PRESETS, TURN_PRESETS,
+		getStoredStunPreset, setStoredStunPreset,
+		getStoredTurnPreset, setStoredTurnPreset,
+	} from '../../lib/p2p/ice-config';
+	import { getSignalingType } from '../../lib/p2p/quick-connect';
+	import { QRCodeToDataURL } from '../../lib/p2p/qr';
+	import { Copy, Share2, Eye, Pencil, Wifi, WifiOff, Users, Lock, Unlock, Shield, Zap, ChevronDown, ChevronUp, Settings, Camera, Dices, Loader2 } from 'lucide-svelte';
+
+	interface Props {
+		/** Pre-filled offer code from URL parameter */
+		initialOfferCode?: string | null;
+		/** Pre-filled answer code from URL parameter (for QR back-and-forth) */
+		initialAnswerCode?: string | null;
+	}
+	let { initialOfferCode = null, initialAnswerCode = null } = $props<Props>();
+
+	// --- Mode selection ---
+	type ShareTab = 'quick' | 'private';
+	// If we have an invite code, auto-select the private tab
+	let shareTab: ShareTab = $state(initialOfferCode ? 'private' : 'quick');
+
+	// --- Quick mode state ---
+	let ownerName = $state(generateDisplayName());
+	let mode: 'collaborative' | 'view-only' = $state('collaborative');
+	let password = $state('');
+	let showPassword = $state(false);
+	let joinCode = $state('');
+	let joinPassword = $state('');
+	let joinName = $state(generateDisplayName());
+
+	// --- Loading states ---
+	let isStarting = $state(false);
+	let isJoining = $state(false);
+
+	// --- Private mode state ---
+	let privateName = $state(generateDisplayName());
+	let privateOfferInput = $state(initialOfferCode ?? '');
+	let privateAnswerInput = $state('');
+	let privateStep: 'idle' | 'hosting-waiting' | 'guest-answering' | 'connected' = $state('idle');
+	// Track whether we have an invite to accept (from URL)
+	let hasInviteToAccept = $state(!!initialOfferCode);
+
+	// --- Advanced settings ---
+	let showAdvanced = $state(false);
+	let signalingUrl = $state(getStoredSignalingUrl());
+	let stunPreset = $state(getStoredStunPreset());
+	let turnPreset = $state(getStoredTurnPreset());
+	let signalingType = $derived(getSignalingType());
+
+	// --- Shared state ---
+	let qrDataUrl = $state('');
+	let answerQrDataUrl = $state('');
+	let copyFeedback = $state('');
+	let scanning = $state(false);
+	let scanVideoEl: HTMLVideoElement | undefined = $state();
+	let hasBarcodeDetector = $state(typeof globalThis !== 'undefined' && 'BarcodeDetector' in globalThis);
+
+	const status = $derived($peerState.status);
+	const roomCode = $derived($peerState.roomCode);
+	const peers = $derived($peerState.peers);
+	const error = $derived($peerState.error);
+	const isOwner = $derived($peerState.isOwner);
+	const currentMode = $derived($peerState.mode);
+	const shareMode = $derived($peerState.shareMode);
+	const offerCode = $derived($peerState.privateOfferCode);
+	const answerCode = $derived($peerState.privateAnswerCode);
+	const connectPhase = $derived($peerState.connectPhase);
+
+	/** Human-readable phase label */
+	function phaseLabel(phase: string | null): string {
+		switch (phase) {
+			case 'creating-offer': return 'Creating secure room...';
+			case 'posting': return 'Publishing room code...';
+			case 'waiting-for-partner': return 'Waiting for partner...';
+			case 'polling-for-offer': return 'Looking for room...';
+			case 'generating-answer': return 'Connecting to host...';
+			case 'posting-answer': return 'Sending response...';
+			case 'completing': return 'Completing handshake...';
+			case 'connected': return 'Connected!';
+			default: return 'Connecting...';
+		}
+	}
+
+	// Generate QR code when hosting (Quick: room URL, Private: offer URL)
+	$effect(() => {
+		if (status === 'hosting' && shareMode === 'quick' && roomCode) {
+			const url = getRoomUrl(roomCode, password || undefined);
+			QRCodeToDataURL(url).then(dataUrl => { qrDataUrl = dataUrl; });
+		} else if (shareMode === 'private' && offerCode && privateStep === 'hosting-waiting') {
+			// Private mode: QR generated while host waits for answer (status is 'connecting')
+			const url = getPrivateOfferUrl(offerCode);
+			QRCodeToDataURL(url).then(dataUrl => { qrDataUrl = dataUrl; });
+		} else {
+			qrDataUrl = '';
+		}
+	});
+
+	// Generate QR code for the answer code (guest side, private mode) — encodes a URL for phone camera scanning
+	$effect(() => {
+		if (answerCode && privateStep === 'guest-answering') {
+			const url = getPrivateAnswerUrl(answerCode);
+			QRCodeToDataURL(url).then(dataUrl => { answerQrDataUrl = dataUrl; });
+		} else {
+			answerQrDataUrl = '';
+		}
+	});
+
+	// Auto-process initial offer code from URL — fires once when name is entered
+	let autoJoinAttempted = false;
+	$effect(() => {
+		if (initialOfferCode && hasInviteToAccept && privateName.trim() && !autoJoinAttempted && privateStep === 'idle') {
+			autoJoinAttempted = true;
+			handlePrivateJoin();
+		}
+	});
+
+	// Watch for background connection completion (guest private mode)
+	$effect(() => {
+		if (shareMode === 'private' && privateStep === 'guest-answering') {
+			if (status === 'hosting' || status === 'joined') {
+				privateStep = 'connected';
+			} else if (status === 'disconnected' && $peerState.error) {
+				localError = $peerState.error;
+				privateStep = 'idle';
+				hasInviteToAccept = false;
+			}
+		}
+	});
+
+	// Listen for answer codes from other tabs (BroadcastChannel) when host is waiting
+	$effect(() => {
+		if (privateStep !== 'hosting-waiting') return;
+		if (typeof BroadcastChannel === 'undefined') return;
+		const bc = new BroadcastChannel('ct-private-connect');
+		bc.onmessage = (event: MessageEvent) => {
+			if (event.data?.type === 'answer-code' && event.data.code) {
+				debug('[SharingPanel] Received answer via BroadcastChannel');
+				privateAnswerInput = event.data.code;
+				handlePrivateComplete();
+			}
+		};
+		return () => bc.close();
+	});
+
+	// Auto-complete from initialAnswerCode (opened via ?answer= URL)
+	$effect(() => {
+		if (initialAnswerCode && privateStep === 'hosting-waiting' && !privateAnswerInput) {
+			debug('[SharingPanel] Auto-filling answer from URL param');
+			privateAnswerInput = initialAnswerCode;
+			handlePrivateComplete();
+		}
+	});
+
+	function debug(...args: unknown[]) { console.debug('[SharingPanel]', ...args); }
+
+	// --- Quick mode handlers ---
+
+	async function handleStartSharing() {
+		if (!ownerName.trim()) return;
+		localError = '';
+		isStarting = true;
+		setStoredSignalingUrl(signalingUrl);
+		setStoredStunPreset(stunPreset);
+		setStoredTurnPreset(turnPreset);
+		try {
+			await startSharing({
+				ownerName: ownerName.trim(),
+				mode,
+				password: password || undefined,
+			});
+		} catch (e) {
+			const msg = e instanceof Error ? e.message : String(e);
+			console.error('[SharingPanel] handleStartSharing failed:', msg);
+			localError = msg;
+		} finally {
+			isStarting = false;
+		}
+	}
+
+	async function handleJoin() {
+		const code = joinCode.trim().toLowerCase();
+		if (!code || !joinName.trim()) return;
+		localError = '';
+		isJoining = true;
+		try {
+			await joinSharing({
+				roomCode: code,
+				guestName: joinName.trim(),
+				password: joinPassword || undefined,
+			});
+		} catch (e) {
+			const msg = e instanceof Error ? e.message : String(e);
+			console.error('[SharingPanel] handleJoin failed:', msg);
+			localError = msg;
+		} finally {
+			isJoining = false;
+		}
+	}
+
+	function handleGeneratePassphrase() {
+		password = generatePassphrase();
+		showPassword = true;
+	}
+
+	// --- Private mode handlers ---
+
+	async function handlePrivateHost() {
+		if (!privateName.trim()) return;
+		try {
+			await startPrivateHost(privateName.trim());
+			privateStep = 'hosting-waiting';
+		} catch (e) {
+			console.error('[SharingPanel] handlePrivateHost failed:', e);
+		}
+	}
+
+	async function handlePrivateComplete() {
+		if (!privateAnswerInput.trim()) return;
+		localError = '';
+		try {
+			await completePrivateHost(privateAnswerInput.trim(), privateName.trim());
+			privateStep = 'connected';
+		} catch (e) {
+			const msg = e instanceof Error ? e.message : String(e);
+			console.error('[SharingPanel] handlePrivateComplete failed:', msg);
+			localError = msg;
+			// Stay on hosting-waiting so user can retry with a new invite
+		}
+	}
+
+	let localError = $state('');
+
+	/** Wrap a promise with a timeout */
+	function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+		return Promise.race([
+			promise,
+			new Promise<never>((_, reject) =>
+				setTimeout(() => reject(new Error(`${label} timed out after ${Math.round(ms / 1000)}s`)), ms)
+			),
+		]);
+	}
+
+	async function handlePrivateJoin() {
+		if (!privateOfferInput.trim() || !privateName.trim()) return;
+		localError = '';
+		privateStep = 'guest-answering';
+		try {
+			// 15s timeout — covers ICE gathering (~5s) + SDP processing only.
+			// Connection wait runs in background (no timeout — user cancels manually).
+			await withTimeout(
+				joinPrivateOffer(privateOfferInput.trim(), privateName.trim()),
+				15000,
+				'Generating response code',
+			);
+			// Answer code is now generated and displayed.
+			// Connection will complete in background when host enters the code.
+			// Watch peerState for status changes.
+		} catch (e) {
+			const msg = e instanceof Error ? e.message : String(e);
+			console.error('[SharingPanel] handlePrivateJoin failed:', msg);
+			localError = msg;
+			privateStep = 'idle';
+			hasInviteToAccept = false; // Show manual form so user can see the error
+			stopSharing(); // Clean up any partial state
+		}
+	}
+
+	// --- QR Scanner (uses BarcodeDetector API — Chrome, Edge, Safari) ---
+
+	let scanStream: MediaStream | null = null;
+	let scanInterval: ReturnType<typeof setInterval> | null = null;
+
+	async function startQRScan(target: 'answer' | 'offer' | 'room') {
+		if (!hasBarcodeDetector) return;
+		try {
+			const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+			scanStream = stream;
+			scanning = true;
+
+			// Wait for video element to bind
+			await new Promise(r => setTimeout(r, 100));
+			if (scanVideoEl) {
+				scanVideoEl.srcObject = stream;
+				await scanVideoEl.play();
+			}
+
+			const detector = new (globalThis as any).BarcodeDetector({ formats: ['qr_code'] });
+			scanInterval = setInterval(async () => {
+				if (!scanVideoEl || scanVideoEl.readyState < 2) return;
+				try {
+					const barcodes = await detector.detect(scanVideoEl);
+					if (barcodes.length > 0) {
+						const raw = barcodes[0].rawValue;
+						stopQRScan();
+						if (target === 'room') {
+							// Parse room URL: ?room=code or ?room=code#key=password
+							try {
+								const url = new URL(raw);
+								const room = url.searchParams.get('room');
+								if (room) {
+									joinCode = room;
+									// Extract password from hash fragment (#key=...)
+									const hash = url.hash.slice(1); // remove '#'
+									const hashParams = new URLSearchParams(hash);
+									const key = hashParams.get('key');
+									if (key) joinPassword = key;
+								} else {
+									// Maybe it's just a raw room code
+									joinCode = raw;
+								}
+							} catch {
+								// Not a URL — treat as raw room code
+								joinCode = raw;
+							}
+						} else if (target === 'answer') {
+							// Could be a URL with ?answer= or raw code
+							if (raw.includes('?answer=')) {
+								try {
+									const url = new URL(raw);
+									privateAnswerInput = url.searchParams.get('answer') || raw;
+								} catch { privateAnswerInput = raw; }
+							} else {
+								privateAnswerInput = raw;
+							}
+						} else if (target === 'offer') {
+							// Could be a URL with ?offer= or raw code
+							if (raw.includes('?offer=')) {
+								const url = new URL(raw);
+								privateOfferInput = url.searchParams.get('offer') || raw;
+							} else {
+								privateOfferInput = raw;
+							}
+						}
+					}
+				} catch {}
+			}, 300);
+		} catch (e) {
+			console.error('[SharingPanel] Camera access failed:', e);
+			scanning = false;
+		}
+	}
+
+	function stopQRScan() {
+		scanning = false;
+		if (scanInterval) { clearInterval(scanInterval); scanInterval = null; }
+		if (scanStream) { scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
+		if (scanVideoEl) { scanVideoEl.srcObject = null; }
+	}
+
+	// --- Shared handlers ---
+
+	function handleStop() {
+		stopSharing();
+		stopQRScan();
+		privateStep = 'idle';
+		privateOfferInput = '';
+		privateAnswerInput = '';
+		qrDataUrl = '';
+		answerQrDataUrl = '';
+	}
+
+	async function handleCopy(text: string, label: string) {
+		try {
+			await navigator.clipboard.writeText(text);
+			copyFeedback = `${label} copied!`;
+			setTimeout(() => copyFeedback = '', 2000);
+		} catch {
+			copyFeedback = 'Failed to copy';
+			setTimeout(() => copyFeedback = '', 2000);
+		}
+	}
+
+	async function handleNativeShare(title: string, text: string, url: string) {
+		if (navigator.share) {
+			try { await navigator.share({ title, text, url }); } catch {}
+		}
+	}
+</script>
+
+<div class="sharing-panel">
+	{#if privateStep === 'hosting-waiting'}
+		<!-- ======= Private: Host waiting for guest's answer ======= -->
+		<div class="sharing-section">
+			<div class="step-label">Step 1: Share this with your partner</div>
+
+			{#if qrDataUrl}
+				<div class="qr-container">
+					<img src={qrDataUrl} alt="QR code for private invite" class="qr-image" />
+				</div>
+			{/if}
+
+			{#if offerCode}
+				<div class="code-box">
+					<span class="code-box-label">Invite code</span>
+					<div class="code-row">
+						<code class="code-value">{offerCode.length > 40 ? offerCode.slice(0, 40) + '...' : offerCode}</code>
+						<button class="icon-btn" onclick={() => handleCopy(offerCode!, 'Invite code')} aria-label="Copy invite code">
+							<Copy size={16} />
+						</button>
+					</div>
+				</div>
+
+				<div class="share-buttons">
+					{#if typeof navigator !== 'undefined' && navigator.share}
+						<button class="btn-secondary share-btn" onclick={() => handleNativeShare('Join my contraction timer', 'Open this link to connect:', getPrivateOfferUrl(offerCode!))}>
+							<Share2 size={16} />
+							Share
+						</button>
+					{/if}
+					<button class="btn-secondary share-btn" onclick={() => handleCopy(getPrivateOfferUrl(offerCode!), 'Link')}>
+						<Copy size={16} />
+						Copy link
+					</button>
+				</div>
+			{/if}
+
+			<div class="step-label step-2">Step 2: Enter partner's response code</div>
+
+			{#if scanning}
+				<div class="scan-preview">
+					<video bind:this={scanVideoEl} class="scan-video" playsinline muted></video>
+					<button class="btn-text" onclick={stopQRScan}>Stop scanning</button>
+				</div>
+			{/if}
+
+			<label class="sharing-label">
+				<input type="text" class="sharing-input mono-input" placeholder="Paste their response code..." bind:value={privateAnswerInput} />
+			</label>
+			<div class="step2-actions">
+				<button class="btn-primary step2-connect" onclick={handlePrivateComplete} disabled={!privateAnswerInput.trim()}>
+					Connect
+				</button>
+				{#if hasBarcodeDetector && !scanning}
+					<button class="btn-secondary scan-btn" onclick={() => startQRScan('answer')} aria-label="Scan QR code">
+						<Camera size={18} />
+					</button>
+				{/if}
+			</div>
+
+			<button class="btn-text" onclick={handleStop}>
+				Cancel
+			</button>
+		</div>
+
+	{:else if privateStep === 'guest-answering'}
+		<!-- ======= Private: Guest showing answer code ======= -->
+		<div class="sharing-section">
+			{#if answerCode}
+				<div class="step-label">Send this code back to your partner</div>
+
+				{#if answerQrDataUrl}
+					<div class="qr-container">
+						<img src={answerQrDataUrl} alt="QR code for response code" class="qr-image" />
+					</div>
+				{/if}
+
+				<div class="code-box">
+					<span class="code-box-label">Response code</span>
+					<div class="code-row">
+						<code class="code-value">{answerCode.length > 40 ? answerCode.slice(0, 40) + '...' : answerCode}</code>
+						<button class="icon-btn" onclick={() => handleCopy(answerCode!, 'Response code')} aria-label="Copy response code">
+							<Copy size={16} />
+						</button>
+					</div>
+				</div>
+
+				<div class="share-buttons">
+					{#if typeof navigator !== 'undefined' && navigator.share}
+						<button class="btn-secondary share-btn" onclick={() => handleNativeShare('Response code', 'Open this link to connect:', getPrivateAnswerUrl(answerCode!))}>
+							<Share2 size={16} />
+							Share
+						</button>
+					{/if}
+					<button class="btn-secondary share-btn" onclick={() => handleCopy(getPrivateAnswerUrl(answerCode!), 'Response link')}>
+						<Copy size={16} />
+						Copy link
+					</button>
+				</div>
+
+				<div class="waiting-hint">
+					<div class="connecting-spinner small-spinner"></div>
+					Waiting for partner to enter code...
+				</div>
+			{:else}
+				<div class="sharing-status">
+					<div class="connecting-spinner"></div>
+					<p class="status-text">Generating response code...</p>
+				</div>
+			{/if}
+
+			<button class="btn-text" onclick={handleStop}>
+				Cancel
+			</button>
+		</div>
+
+	{:else if status === 'disconnected' || (status === 'connecting' && shareMode !== 'private')}
+		<!-- ======= Disconnected: Mode selection ======= -->
+		<div class="mode-tabs">
+			<button
+				class="mode-tab"
+				class:mode-tab-active={shareTab === 'quick'}
+				onclick={() => shareTab = 'quick'}
+			>
+				<Zap size={16} />
+				Quick connect
+			</button>
+			<button
+				class="mode-tab"
+				class:mode-tab-active={shareTab === 'private'}
+				onclick={() => shareTab = 'private'}
+			>
+				<Shield size={16} />
+				Private connect
+			</button>
+		</div>
+
+		{#if shareTab === 'quick'}
+			<!-- ==================== QUICK CONNECT ==================== -->
+			<div class="mode-desc">
+				Uses a signaling server to find your partner. Simpler setup, works across any network.
+			</div>
+
+			<div class="sharing-section">
+				<h4 class="sharing-heading">Start sharing</h4>
+
+				<label class="sharing-label">
+					Your name
+					<input type="text" class="sharing-input" placeholder="Mom, Partner, etc." bind:value={ownerName} maxlength={30} />
+				</label>
+
+				<div class="sharing-label">Joiners can</div>
+				<div class="mode-radios">
+					<label class="mode-radio" class:mode-selected={mode === 'collaborative'}>
+						<input type="radio" bind:group={mode} value="collaborative" />
+						<Pencil size={16} />
+						<span>View and edit together</span>
+					</label>
+					<label class="mode-radio" class:mode-selected={mode === 'view-only'}>
+						<input type="radio" bind:group={mode} value="view-only" />
+						<Eye size={16} />
+						<span>View only</span>
+					</label>
+				</div>
+
+				<label class="sharing-label">
+					Password (optional)
+					<div class="password-field">
+						{#if showPassword}
+							<input type="text" class="sharing-input" placeholder="Adds encryption" bind:value={password} />
+						{:else}
+							<input type="password" class="sharing-input" placeholder="Adds encryption" bind:value={password} />
+						{/if}
+						<button class="password-action" onclick={handleGeneratePassphrase} aria-label="Generate passphrase" title="Generate passphrase">
+							<Dices size={16} />
+						</button>
+						<button class="password-toggle" onclick={() => showPassword = !showPassword} aria-label={showPassword ? 'Hide password' : 'Show password'}>
+							{#if password}
+								{#if showPassword}<Unlock size={16} />{:else}<Lock size={16} />{/if}
+							{/if}
+						</button>
+					</div>
+					<span class="sharing-hint">
+						{#if password && showPassword}
+							Share this passphrase with your partner
+						{:else}
+							Encrypts the session end-to-end
+						{/if}
+					</span>
+				</label>
+
+				<!-- Advanced: Server selection -->
+				<button class="advanced-toggle" onclick={() => showAdvanced = !showAdvanced}>
+					<Settings size={14} />
+					<span>Server options</span>
+					{#if showAdvanced}<ChevronUp size={14} />{:else}<ChevronDown size={14} />{/if}
+				</button>
+
+				{#if showAdvanced}
+					<div class="advanced-section">
+						<label class="sharing-label">
+							Signaling backend
+							<select class="sharing-select" bind:value={signalingUrl} onchange={() => setStoredSignalingUrl(signalingUrl)}>
+								{#each SIGNALING_PRESETS as preset}
+									{#if preset.url}
+										<option value={preset.url}>{preset.label}</option>
+									{/if}
+								{/each}
+							</select>
+							<span class="sharing-hint">
+								{SIGNALING_PRESETS.find(p => p.url === signalingUrl)?.description ?? 'Routes the initial handshake (encrypted).'}
+							</span>
+						</label>
+
+						<label class="sharing-label">
+							STUN server
+							<select class="sharing-select" bind:value={stunPreset} onchange={() => setStoredStunPreset(stunPreset)}>
+								{#each STUN_PRESETS as preset}
+									<option value={preset.label}>{preset.label}</option>
+								{/each}
+							</select>
+							<span class="sharing-hint">
+								{STUN_PRESETS.find(p => p.label === stunPreset)?.description ?? ''}
+							</span>
+						</label>
+
+						<label class="sharing-label">
+							TURN relay
+							<select class="sharing-select" bind:value={turnPreset} onchange={() => setStoredTurnPreset(turnPreset)}>
+								{#each TURN_PRESETS as preset}
+									<option value={preset.label}>{preset.label}</option>
+								{/each}
+							</select>
+							<span class="sharing-hint">
+								{TURN_PRESETS.find(p => p.label === turnPreset)?.description ?? ''}
+							</span>
+						</label>
+
+						<div class="privacy-note">
+							<span class="sharing-hint">All SDP data is encrypted before leaving your device. STUN only sees your IP. TURN relays encrypted data — cannot read content.</span>
+						</div>
+					</div>
+				{/if}
+
+				<button class="btn-primary btn-with-icon" onclick={handleStartSharing} disabled={!ownerName.trim() || isStarting}>
+					{#if isStarting}
+						<Loader2 size={18} class="spin-icon" />
+						{phaseLabel(connectPhase)}
+					{:else}
+						Start sharing
+					{/if}
+				</button>
+			</div>
+
+			<div class="sharing-divider"><span>or join someone else</span></div>
+
+			<div class="sharing-section join-section">
+				<h4 class="sharing-heading">Join a room</h4>
+
+				{#if hasBarcodeDetector && !scanning}
+					<button class="btn-scan-qr" onclick={() => startQRScan('room')}>
+						<Camera size={18} />
+						Scan QR code to join
+					</button>
+				{/if}
+
+				{#if scanning}
+					<div class="scan-preview">
+						<video bind:this={scanVideoEl} class="scan-video" playsinline muted></video>
+						<button class="btn-text" onclick={stopQRScan}>Stop scanning</button>
+					</div>
+				{/if}
+
+				<label class="sharing-label">
+					Your name
+					<input type="text" class="sharing-input" placeholder="Your name" bind:value={joinName} maxlength={30} />
+				</label>
+				<label class="sharing-label">
+					Room code
+					<input type="text" class="sharing-input" placeholder="blue-tiger-42" bind:value={joinCode} />
+				</label>
+				<label class="sharing-label">
+					Password (if needed)
+					<input type="password" class="sharing-input" placeholder="Leave blank if none" bind:value={joinPassword} />
+				</label>
+				<button class="btn-secondary btn-with-icon" onclick={handleJoin} disabled={!joinCode.trim() || !joinName.trim() || isJoining}>
+					{#if isJoining}
+						<Loader2 size={18} class="spin-icon" />
+						{phaseLabel(connectPhase)}
+					{:else}
+						Join room
+					{/if}
+				</button>
+			</div>
+
+		{:else}
+			<!-- ==================== PRIVATE CONNECT (idle) ==================== -->
+			<div class="mode-desc">
+				No signaling server. You exchange codes directly. Uses {stunPreset} STUN + {turnPreset} TURN.
+			</div>
+
+			{#if hasInviteToAccept}
+				<!-- Focused flow: received an invite link, just need a name -->
+				<div class="sharing-section">
+					<div class="invite-banner">
+						<Shield size={20} />
+						<span>You've received a private invite!</span>
+					</div>
+
+					<label class="sharing-label">
+						Enter your name to connect
+						<input
+							type="text"
+							class="sharing-input"
+							placeholder="Your name"
+							bind:value={privateName}
+							maxlength={30}
+						/>
+						{#if !privateName.trim()}
+							<span class="sharing-hint name-required">Name required to connect</span>
+						{/if}
+					</label>
+
+					<button class="btn-primary" onclick={handlePrivateJoin} disabled={!privateName.trim()}>
+						Connect
+					</button>
+
+					<button class="btn-text" onclick={() => { hasInviteToAccept = false; privateOfferInput = ''; }}>
+						Enter code manually instead
+					</button>
+				</div>
+			{:else}
+				<!-- Normal flow: create or accept invite -->
+				<div class="sharing-section">
+					<label class="sharing-label">
+						Your name
+						<input type="text" class="sharing-input" placeholder="Mom, Partner, etc." bind:value={privateName} maxlength={30} />
+					</label>
+
+					<div class="private-actions">
+						<button class="btn-primary" onclick={handlePrivateHost} disabled={!privateName.trim()}>
+							Create invite
+						</button>
+
+						<div class="sharing-divider"><span>or received an invite?</span></div>
+
+						{#if scanning}
+							<div class="scan-preview">
+								<video bind:this={scanVideoEl} class="scan-video" playsinline muted></video>
+								<button class="btn-text" onclick={stopQRScan}>Stop scanning</button>
+							</div>
+						{/if}
+
+						<label class="sharing-label">
+							Paste invite code
+							<input type="text" class="sharing-input mono-input" placeholder="Paste the invite code here..." bind:value={privateOfferInput} />
+						</label>
+						<div class="step2-actions">
+							<button class="btn-secondary step2-connect" onclick={handlePrivateJoin} disabled={!privateOfferInput.trim() || !privateName.trim()}>
+								Accept invite
+							</button>
+							{#if hasBarcodeDetector && !scanning}
+								<button class="btn-secondary scan-btn" onclick={() => startQRScan('offer')} aria-label="Scan invite QR code">
+									<Camera size={18} />
+								</button>
+							{/if}
+						</div>
+					</div>
+				</div>
+			{/if}
+		{/if}
+
+	{:else if status === 'connecting'}
+		<div class="sharing-status">
+			<div class="connecting-spinner"></div>
+			<p class="status-text">{phaseLabel(connectPhase)}</p>
+			<button class="btn-text" onclick={handleStop}>Cancel</button>
+		</div>
+
+	{:else if status === 'hosting' || status === 'joined'}
+		<!-- Connected state (same for both modes) -->
+		<div class="sharing-section">
+			{#if status === 'hosting' && shareMode === 'quick'}
+				{#if qrDataUrl}
+					<div class="qr-container">
+						<img src={qrDataUrl} alt="QR code for room {roomCode}" class="qr-image" />
+					</div>
+				{/if}
+
+				<div class="code-box">
+					<span class="code-box-label">Room code</span>
+					<div class="code-row">
+						<code class="code-value code-lg">{roomCode}</code>
+						<button class="icon-btn" onclick={() => handleCopy(roomCode!, 'Room code')} aria-label="Copy room code">
+							<Copy size={16} />
+						</button>
+					</div>
+				</div>
+
+				<div class="share-buttons">
+					{#if typeof navigator !== 'undefined' && navigator.share}
+						<button class="btn-secondary share-btn" onclick={() => handleNativeShare('Join my contraction timer', `Room: ${roomCode}`, getShareUrl()!)}>
+							<Share2 size={16} />
+							Share link
+						</button>
+					{/if}
+					<button class="btn-secondary share-btn" onclick={() => handleCopy(getShareUrl()!, 'Link')}>
+						<Copy size={16} />
+						Copy link
+					</button>
+				</div>
+
+				{#if password}
+					<div class="code-box">
+						<span class="code-box-label">Password</span>
+						<div class="code-row">
+							<code class="code-value">{password}</code>
+							<button class="icon-btn" onclick={() => handleCopy(password, 'Password')} aria-label="Copy password">
+								<Copy size={16} />
+							</button>
+						</div>
+						<span class="sharing-hint">Share this with your partner</span>
+					</div>
+				{/if}
+
+				{#if connectPhase === 'waiting-for-partner'}
+					<div class="waiting-hint">
+						<div class="connecting-spinner small-spinner"></div>
+						Waiting for partner to join...
+					</div>
+				{/if}
+			{:else}
+				<div class="joined-header">
+					<Wifi size={18} class="connected-icon" />
+					<span>
+						Connected
+						{#if shareMode === 'private'}
+							<span class="privacy-badge"><Shield size={12} /> Private</span>
+						{/if}
+						{#if roomCode}
+							to <strong>{roomCode}</strong>
+						{/if}
+					</span>
+				</div>
+				{#if status === 'joined'}
+					<div class="joined-mode">
+						Mode: {currentMode === 'collaborative' ? 'View and edit together' : 'View only'}
+					</div>
+				{/if}
+			{/if}
+
+			{#if copyFeedback}
+				<div class="copy-toast">{copyFeedback}</div>
+			{/if}
+
+			<div class="peer-list">
+				<div class="peer-list-header">
+					<Users size={16} />
+					<span>Connected ({peers.length})</span>
+				</div>
+				{#each peers as peer}
+					<div class="peer-row">
+						<span class="peer-name">
+							{peer.name}{peer.isOwner ? ' (host)' : ''}
+						</span>
+						{#if currentMode === 'view-only' && !peer.isOwner}
+							<Eye size={14} class="peer-icon" />
+						{:else}
+							<Pencil size={14} class="peer-icon" />
+						{/if}
+					</div>
+				{/each}
+			</div>
+
+			<button class="btn-danger" onclick={handleStop}>
+				{status === 'hosting' ? 'Stop sharing' : 'Disconnect'}
+			</button>
+		</div>
+	{/if}
+
+	{#if error || localError}
+		<div class="error-banner">{error || localError}</div>
+	{/if}
+
+	{#if copyFeedback && (status === 'disconnected' || status === 'connecting')}
+		<div class="copy-toast floating-toast">{copyFeedback}</div>
+	{/if}
+</div>
+
+<style>
+	.sharing-panel {
+		padding: var(--space-4);
+	}
+
+	/* Mode tabs */
+	.mode-tabs {
+		display: flex;
+		gap: var(--space-1);
+		padding: var(--space-1);
+		background: var(--bg-card);
+		border-radius: var(--radius-lg);
+		margin-bottom: var(--space-3);
+	}
+
+	.mode-tab {
+		flex: 1;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: var(--space-1);
+		padding: var(--space-2) var(--space-3);
+		border: none;
+		border-radius: var(--radius-md);
+		background: transparent;
+		color: var(--text-muted);
+		font-size: var(--text-sm);
+		font-weight: 600;
+		cursor: pointer;
+		-webkit-tap-highlight-color: transparent;
+		transition: background 150ms, color 150ms;
+	}
+
+	.mode-tab-active {
+		background: var(--bg-primary);
+		color: var(--text-primary);
+		box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+	}
+
+	.mode-desc {
+		font-size: var(--text-xs);
+		color: var(--text-faint);
+		text-align: center;
+		margin-bottom: var(--space-4);
+		line-height: 1.4;
+	}
+
+	/* Sections */
+	.sharing-section {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-3);
+	}
+
+	.sharing-heading {
+		font-size: var(--text-base);
+		font-weight: 700;
+		color: var(--text-primary);
+		margin: 0;
+	}
+
+	.sharing-label {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-1);
+		font-size: var(--text-sm);
+		font-weight: 600;
+		color: var(--text-secondary);
+	}
+
+	.sharing-hint {
+		font-size: var(--text-xs);
+		color: var(--text-faint);
+		font-weight: 400;
+	}
+
+	.sharing-input {
+		padding: var(--space-2) var(--space-3);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-md);
+		background: var(--bg-card);
+		color: var(--text-primary);
+		font-size: var(--text-base);
+		outline: none;
+		width: 100%;
+		box-sizing: border-box;
+	}
+
+	.sharing-input:focus {
+		border-color: var(--accent);
+	}
+
+	.sharing-input::placeholder {
+		color: var(--text-faint);
+	}
+
+	.sharing-select {
+		padding: var(--space-2) var(--space-3);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-md);
+		background: var(--bg-card);
+		color: var(--text-primary);
+		font-size: var(--text-sm);
+		outline: none;
+		width: 100%;
+		box-sizing: border-box;
+	}
+
+	.mono-input {
+		font-family: monospace;
+		font-size: var(--text-sm);
+	}
+
+	/* Password field */
+	.password-field {
+		position: relative;
+		display: flex;
+		align-items: center;
+	}
+
+	.password-field .sharing-input {
+		padding-right: calc(var(--space-7) + var(--space-6));
+	}
+
+	.password-toggle {
+		position: absolute;
+		right: var(--space-2);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: var(--btn-height-sm);
+		height: var(--btn-height-sm);
+		border: none;
+		background: none;
+		cursor: pointer;
+		color: var(--text-muted);
+		border-radius: var(--radius-sm);
+	}
+
+	.password-action {
+		position: absolute;
+		right: calc(var(--space-2) + var(--btn-height-sm));
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: var(--btn-height-sm);
+		height: var(--btn-height-sm);
+		border: none;
+		background: none;
+		cursor: pointer;
+		color: var(--text-muted);
+		border-radius: var(--radius-sm);
+		-webkit-tap-highlight-color: transparent;
+	}
+
+	.password-action:active {
+		color: var(--accent);
+		background: var(--accent-muted);
+	}
+
+	/* Mode radios */
+	.mode-radios {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-2);
+	}
+
+	.mode-radio {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		padding: var(--space-2) var(--space-3);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-md);
+		cursor: pointer;
+		font-size: var(--text-sm);
+		color: var(--text-secondary);
+		-webkit-tap-highlight-color: transparent;
+	}
+
+	.mode-radio input[type="radio"] {
+		accent-color: var(--accent);
+	}
+
+	.mode-radio.mode-selected {
+		border-color: var(--accent);
+		background: var(--accent-muted);
+		color: var(--accent);
+	}
+
+	.mode-radio :global(svg) {
+		flex-shrink: 0;
+	}
+
+	/* Advanced settings */
+	.advanced-toggle {
+		display: flex;
+		align-items: center;
+		gap: var(--space-1);
+		padding: var(--space-1) 0;
+		border: none;
+		background: none;
+		color: var(--text-faint);
+		font-size: var(--text-xs);
+		font-weight: 500;
+		cursor: pointer;
+		-webkit-tap-highlight-color: transparent;
+	}
+
+	.advanced-toggle:active {
+		color: var(--text-muted);
+	}
+
+	.advanced-section {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-3);
+		padding: var(--space-3);
+		background: var(--bg-card);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-md);
+	}
+
+	/* Buttons */
+	.btn-primary {
+		padding: var(--space-3);
+		border: none;
+		border-radius: var(--radius-md);
+		background: var(--accent);
+		color: white;
+		font-size: var(--text-base);
+		font-weight: 600;
+		cursor: pointer;
+		-webkit-tap-highlight-color: transparent;
+	}
+
+	.btn-primary:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
+	.btn-primary:active:not(:disabled) {
+		filter: brightness(0.9);
+	}
+
+	.btn-secondary {
+		padding: var(--space-3);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-md);
+		background: var(--bg-card);
+		color: var(--text-secondary);
+		font-size: var(--text-base);
+		font-weight: 500;
+		cursor: pointer;
+		-webkit-tap-highlight-color: transparent;
+	}
+
+	.btn-secondary:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
+	.btn-secondary:active:not(:disabled) {
+		background: var(--bg-card-hover);
+	}
+
+	.btn-danger {
+		padding: var(--space-3);
+		border: none;
+		border-radius: var(--radius-md);
+		background: var(--danger-muted);
+		color: var(--danger);
+		font-size: var(--text-base);
+		font-weight: 600;
+		cursor: pointer;
+		-webkit-tap-highlight-color: transparent;
+	}
+
+	.btn-danger:active {
+		filter: brightness(0.9);
+	}
+
+	.btn-text {
+		padding: var(--space-2);
+		border: none;
+		background: none;
+		color: var(--text-muted);
+		font-size: var(--text-sm);
+		cursor: pointer;
+		text-align: center;
+		-webkit-tap-highlight-color: transparent;
+	}
+
+	.btn-text:active {
+		color: var(--text-secondary);
+	}
+
+	/* Divider */
+	.sharing-divider {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+		margin: var(--space-4) 0;
+		color: var(--text-faint);
+		font-size: var(--text-sm);
+	}
+
+	.sharing-divider::before,
+	.sharing-divider::after {
+		content: '';
+		flex: 1;
+		height: 1px;
+		background: var(--border);
+	}
+
+	/* Step labels (Private mode) */
+	.step-label {
+		font-size: var(--text-sm);
+		font-weight: 600;
+		color: var(--text-secondary);
+	}
+
+	.step-2 {
+		margin-top: var(--space-2);
+		padding-top: var(--space-3);
+		border-top: 1px solid var(--border);
+	}
+
+	.private-actions {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-3);
+	}
+
+	.waiting-hint {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: var(--space-2);
+		text-align: center;
+		font-size: var(--text-sm);
+		color: var(--text-faint);
+		font-style: italic;
+	}
+
+	.small-spinner {
+		width: var(--space-3);
+		height: var(--space-3);
+		border-width: 2px;
+	}
+
+	/* Connecting */
+	.sharing-status {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: var(--space-3);
+		padding: var(--space-6) 0;
+	}
+
+	.connecting-spinner {
+		width: var(--space-6);
+		height: var(--space-6);
+		border: 3px solid var(--border);
+		border-top-color: var(--accent);
+		border-radius: 50%;
+		animation: spin 0.8s linear infinite;
+	}
+
+	@keyframes spin {
+		to { transform: rotate(360deg); }
+	}
+
+	.status-text {
+		font-size: var(--text-base);
+		color: var(--text-muted);
+	}
+
+	/* QR code */
+	.qr-container {
+		display: flex;
+		justify-content: center;
+		padding: var(--space-3);
+		background: white;
+		border-radius: var(--radius-lg);
+		align-self: center;
+	}
+
+	.qr-image {
+		width: 200px;
+		height: 200px;
+		image-rendering: pixelated;
+	}
+
+	/* Code display */
+	.code-box {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-1);
+	}
+
+	.code-box-label {
+		font-size: var(--text-xs);
+		font-weight: 600;
+		color: var(--text-faint);
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+	}
+
+	.code-row {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		padding: var(--space-2) var(--space-3);
+		background: var(--bg-card);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-md);
+	}
+
+	.code-value {
+		flex: 1;
+		font-size: var(--text-sm);
+		font-weight: 500;
+		color: var(--text-primary);
+		font-family: monospace;
+		letter-spacing: 0.01em;
+		word-break: break-all;
+	}
+
+	.code-lg {
+		font-size: var(--text-lg);
+		font-weight: 600;
+		letter-spacing: 0.02em;
+	}
+
+	.icon-btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: var(--btn-height-sm);
+		height: var(--btn-height-sm);
+		border: none;
+		background: none;
+		cursor: pointer;
+		color: var(--text-muted);
+		border-radius: var(--radius-sm);
+		flex-shrink: 0;
+		-webkit-tap-highlight-color: transparent;
+	}
+
+	.icon-btn:active {
+		background: var(--bg-card-hover);
+	}
+
+	/* Share buttons */
+	.share-buttons {
+		display: flex;
+		gap: var(--space-2);
+	}
+
+	.share-btn {
+		flex: 1;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: var(--space-2);
+	}
+
+	.copy-toast {
+		text-align: center;
+		font-size: var(--text-sm);
+		font-weight: 600;
+		color: var(--accent);
+		animation: fadeIn 200ms ease-out;
+	}
+
+	.floating-toast {
+		margin-top: var(--space-2);
+	}
+
+	@keyframes fadeIn {
+		from { opacity: 0; }
+		to { opacity: 1; }
+	}
+
+	/* Peer list */
+	.peer-list {
+		border: 1px solid var(--border);
+		border-radius: var(--radius-md);
+		overflow: hidden;
+	}
+
+	.peer-list-header {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		padding: var(--space-2) var(--space-3);
+		background: var(--bg-card);
+		font-size: var(--text-sm);
+		font-weight: 600;
+		color: var(--text-secondary);
+		border-bottom: 1px solid var(--border);
+	}
+
+	.peer-list-header :global(svg) {
+		color: var(--text-muted);
+	}
+
+	.peer-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: var(--space-2) var(--space-3);
+		font-size: var(--text-sm);
+		color: var(--text-secondary);
+	}
+
+	.peer-row + .peer-row {
+		border-top: 1px solid var(--border);
+	}
+
+	.peer-name {
+		font-weight: 500;
+	}
+
+	.peer-row :global(.peer-icon) {
+		color: var(--text-faint);
+	}
+
+	/* Joined view */
+	.joined-header {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		font-size: var(--text-base);
+		color: var(--text-primary);
+	}
+
+	.joined-header :global(.connected-icon) {
+		color: var(--success, var(--accent));
+	}
+
+	.joined-mode {
+		font-size: var(--text-sm);
+		color: var(--text-muted);
+	}
+
+	.privacy-badge {
+		display: inline-flex;
+		align-items: center;
+		gap: 2px;
+		font-size: var(--text-xs);
+		font-weight: 600;
+		color: var(--success, var(--accent));
+		background: var(--success-muted, var(--accent-muted));
+		padding: 1px 6px;
+		border-radius: var(--radius-sm);
+		margin-left: var(--space-1);
+	}
+
+	/* Invite banner */
+	.invite-banner {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		padding: var(--space-3);
+		background: var(--accent-muted);
+		color: var(--accent);
+		border-radius: var(--radius-md);
+		font-size: var(--text-sm);
+		font-weight: 600;
+	}
+
+	.name-required {
+		color: var(--accent);
+		font-weight: 500;
+	}
+
+	/* Step 2 actions (connect + scan) */
+	.step2-actions {
+		display: flex;
+		gap: var(--space-2);
+	}
+
+	.step2-connect {
+		flex: 1;
+	}
+
+	.scan-btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: var(--btn-height, 48px);
+		padding: 0;
+		flex-shrink: 0;
+	}
+
+	/* QR Scanner */
+	.scan-preview {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: var(--space-2);
+		padding: var(--space-2);
+		background: black;
+		border-radius: var(--radius-lg);
+		overflow: hidden;
+	}
+
+	.scan-video {
+		width: 100%;
+		max-height: 200px;
+		border-radius: var(--radius-md);
+		object-fit: cover;
+	}
+
+	/* Join section card */
+	.join-section {
+		padding: var(--space-4);
+		background: var(--bg-card);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-lg);
+	}
+
+	/* Scan QR button (join section) */
+	.btn-scan-qr {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: var(--space-2);
+		padding: var(--space-2) var(--space-3);
+		border: 1px dashed var(--border);
+		border-radius: var(--radius-md);
+		background: transparent;
+		color: var(--text-muted);
+		font-size: var(--text-sm);
+		font-weight: 500;
+		cursor: pointer;
+		-webkit-tap-highlight-color: transparent;
+	}
+
+	.btn-scan-qr:active {
+		background: var(--bg-card-hover);
+		color: var(--text-secondary);
+	}
+
+	/* Button with inline icon/spinner */
+	.btn-with-icon {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: var(--space-2);
+	}
+
+	.btn-with-icon :global(.spin-icon) {
+		animation: spin 0.8s linear infinite;
+	}
+
+	/* Error */
+	.error-banner {
+		margin-top: var(--space-3);
+		padding: var(--space-2) var(--space-3);
+		background: var(--danger-muted);
+		color: var(--danger);
+		border-radius: var(--radius-md);
+		font-size: var(--text-sm);
+	}
+</style>

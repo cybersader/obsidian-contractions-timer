@@ -2,67 +2,105 @@
 	import type { ContractionLocation } from '../../lib/labor-logic/types';
 	import { getLocationLabel } from '../../lib/labor-logic/formatters';
 	import { haptic } from '../../lib/haptic';
+	import { ChevronLeft } from 'lucide-svelte';
 
-	export let value: ContractionLocation | null = null;
-	export let onSelect: (loc: ContractionLocation) => void = () => {};
-	export let onSkip: () => void = () => {};
+	interface Props {
+		value: ContractionLocation | null;
+		onSelect?: (loc: ContractionLocation) => void;
+		onSkip?: () => void;
+		onBack?: () => void;
+	}
+	let { value, onSelect = () => {}, onSkip = () => {}, onBack } = $props<Props>();
 
 	const locations: ContractionLocation[] = ['front', 'back', 'wrapping'];
 
 	function select(loc: ContractionLocation) {
 		haptic(30);
-		value = loc;
 		onSelect(loc);
 	}
 </script>
 
 <div class="picker-card">
-	<div class="picker-label">Where did you feel it?</div>
+	<div class="picker-top">
+		{#if onBack}
+			<button class="back-btn" onclick={onBack} aria-label="Back to intensity">
+				<ChevronLeft size={16} />
+			</button>
+		{/if}
+		<div class="picker-label">Where did you feel it?</div>
+	</div>
 	<div class="location-buttons">
 		{#each locations as loc}
 			<button
 				class="location-btn"
 				class:selected={value === loc}
-				on:click={() => select(loc)}
+				onclick={() => select(loc)}
 			>
 				{getLocationLabel(loc)}
 			</button>
 		{/each}
 	</div>
-	<button class="skip-btn" on:click={onSkip}>Skip</button>
+	<button class="skip-btn" onclick={onSkip}>Skip</button>
 </div>
 
 <style>
 	.picker-card {
-		background: rgba(255, 255, 255, 0.03);
-		border: 1px solid rgba(255, 255, 255, 0.08);
-		border-radius: 12px;
-		padding: 12px;
-		margin: 8px 0;
+		background: var(--bg-card);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-md);
+		padding: var(--space-3);
+		margin: var(--space-2) 0;
+	}
+
+	.picker-top {
+		display: flex;
+		align-items: center;
+		margin-bottom: var(--space-2);
+	}
+
+	.back-btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: var(--btn-height-sm);
+		height: var(--btn-height-sm);
+		border: none;
+		background: none;
+		color: var(--text-muted);
+		cursor: pointer;
+		border-radius: var(--radius-sm);
+		-webkit-tap-highlight-color: transparent;
+		flex-shrink: 0;
+	}
+
+	.back-btn:active {
+		background: var(--bg-card-hover);
 	}
 
 	.picker-label {
-		font-size: 0.78rem;
-		color: rgba(255, 255, 255, 0.6);
-		margin-bottom: 8px;
+		font-size: var(--text-sm);
+		color: var(--text-secondary);
 		text-align: center;
+		flex: 1;
 	}
 
 	.location-buttons {
 		display: flex;
-		gap: 6px;
+		gap: var(--space-2);
 		justify-content: center;
 	}
 
 	.location-btn {
-		padding: 8px 14px;
-		border-radius: 8px;
-		border: 1px solid rgba(255, 255, 255, 0.1);
+		padding: var(--space-3) var(--space-4);
+		min-height: var(--btn-height-md);
+		border-radius: var(--radius-sm);
+		border: 1px solid var(--input-border);
 		background: transparent;
-		color: rgba(255, 255, 255, 0.7);
-		font-size: 0.78rem;
+		color: var(--text-secondary);
+		font-size: var(--text-sm);
 		cursor: pointer;
-		transition: all 0.15s;
+		transition: all var(--transition-fast);
+		-webkit-tap-highlight-color: transparent;
 	}
 
 	.location-btn:active {
@@ -70,19 +108,21 @@
 	}
 
 	.location-btn.selected {
-		border-color: #818cf8;
-		background: rgba(129, 140, 248, 0.1);
-		color: #818cf8;
+		border-color: var(--accent);
+		background: var(--accent-muted);
+		color: var(--accent);
 	}
 
 	.skip-btn {
 		display: block;
-		margin: 8px auto 0;
-		padding: 4px 16px;
+		margin: var(--space-2) auto 0;
+		padding: var(--space-2) var(--space-4);
+		min-height: var(--btn-height-sm);
 		border: none;
 		background: transparent;
-		color: rgba(255, 255, 255, 0.4);
-		font-size: 0.72rem;
+		color: var(--text-muted);
+		font-size: var(--text-sm);
 		cursor: pointer;
+		-webkit-tap-highlight-color: transparent;
 	}
 </style>

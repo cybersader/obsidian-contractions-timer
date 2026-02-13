@@ -129,6 +129,14 @@ export function getRelevantTips(
 	return candidates.slice(0, 2);
 }
 
+export function getRelevantTipCount(
+	contractions: Contraction[],
+	events: LaborEvent[],
+	currentStage: LaborStage | null
+): number {
+	return getRelevantTips(contractions, events, currentStage, null).length;
+}
+
 export function dismissTip(tipId: string): void {
 	const key = 'ct-dismissed-tips';
 	let dismissed: string[] = [];

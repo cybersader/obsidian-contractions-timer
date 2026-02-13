@@ -5,39 +5,57 @@
 	import IntensityPicker from './IntensityPicker.svelte';
 	import LocationPicker from './LocationPicker.svelte';
 
-	$: lastCompleted = [...$session.contractions]
-		.filter(c => c.end !== null && !c.ratingDismissed)
-		.pop();
+	let lastCompleted = $derived.by(() => {
+		return [...$session.contractions]
+			.filter(c => c.end !== null && !c.ratingDismissed)
+			.pop();
+	});
 
-	$: needsRating = lastCompleted && $settings.showPostRating &&
-		(lastCompleted.intensity === null || lastCompleted.location === null);
+	let needsRating = $derived(
+		lastCompleted && $settings.showPostRating &&
+		(lastCompleted.intensity === null || lastCompleted.location === null)
+	);
 
 	function setIntensity(level: number) {
 		if (!lastCompleted) return;
+		const id = lastCompleted.id;
 		session.update(s => ({
 			...s,
 			contractions: s.contractions.map(c =>
-				c.id === lastCompleted!.id ? { ...c, intensity: level } : c
+				c.id === id ? { ...c, intensity: level } : c
 			),
 		}));
 	}
 
 	function setLocation(loc: ContractionLocation) {
 		if (!lastCompleted) return;
+		const id = lastCompleted.id;
 		session.update(s => ({
 			...s,
 			contractions: s.contractions.map(c =>
-				c.id === lastCompleted!.id ? { ...c, location: loc } : c
+				c.id === id ? { ...c, location: loc } : c
+			),
+		}));
+	}
+
+	function clearIntensity() {
+		if (!lastCompleted) return;
+		const id = lastCompleted.id;
+		session.update(s => ({
+			...s,
+			contractions: s.contractions.map(c =>
+				c.id === id ? { ...c, intensity: null } : c
 			),
 		}));
 	}
 
 	function dismiss() {
 		if (!lastCompleted) return;
+		const id = lastCompleted.id;
 		session.update(s => ({
 			...s,
 			contractions: s.contractions.map(c =>
-				c.id === lastCompleted!.id ? { ...c, ratingDismissed: true } : c
+				c.id === id ? { ...c, ratingDismissed: true } : c
 			),
 		}));
 	}
@@ -56,6 +74,7 @@
 			value={lastCompleted.location}
 			onSelect={setLocation}
 			onSkip={dismiss}
+			onBack={$settings.showIntensityPicker ? clearIntensity : undefined}
 		/>
 	{/if}
 {/if}

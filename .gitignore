@@ -40,6 +40,10 @@ web/dist/
 web/node_modules/
 web/.astro/
 
+# Playwright test artifacts
+web/test-results/
+web/playwright-report/
+
 # Claude Code infrastructure (not for public repo)
 .claude/
 knowledge-base/

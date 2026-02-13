@@ -2,15 +2,17 @@
 	import { getIntensityLabel } from '../../lib/labor-logic/formatters';
 	import { haptic } from '../../lib/haptic';
 
-	export let value: number | null = null;
-	export let onSelect: (level: number) => void = () => {};
-	export let onSkip: () => void = () => {};
+	interface Props {
+		value: number | null;
+		onSelect?: (level: number) => void;
+		onSkip?: () => void;
+	}
+	let { value, onSelect = () => {}, onSkip = () => {} } = $props<Props>();
 
 	const levels = [1, 2, 3, 4, 5];
 
 	function select(level: number) {
 		haptic(30);
-		value = level;
 		onSelect(level);
 	}
 </script>
@@ -23,51 +25,53 @@
 				class="intensity-btn"
 				class:selected={value === level}
 				style="--dot-color: var(--color-intensity-{level})"
-				on:click={() => select(level)}
+				onclick={() => select(level)}
 			>
 				<span class="intensity-dot" style="background: var(--color-intensity-{level})"></span>
 				<span class="intensity-text">{getIntensityLabel(level)}</span>
 			</button>
 		{/each}
 	</div>
-	<button class="skip-btn" on:click={onSkip}>Skip</button>
+	<button class="skip-btn" onclick={onSkip}>Skip</button>
 </div>
 
 <style>
 	.picker-card {
-		background: rgba(255, 255, 255, 0.03);
-		border: 1px solid rgba(255, 255, 255, 0.08);
-		border-radius: 12px;
-		padding: 12px;
-		margin: 8px 0;
+		background: var(--bg-card);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-md);
+		padding: var(--space-3);
+		margin: var(--space-2) 0;
 	}
 
 	.picker-label {
-		font-size: 0.78rem;
-		color: rgba(255, 255, 255, 0.6);
-		margin-bottom: 8px;
+		font-size: var(--text-sm);
+		color: var(--text-secondary);
+		margin-bottom: var(--space-2);
 		text-align: center;
 	}
 
 	.intensity-buttons {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 6px;
+		gap: var(--space-2);
 		justify-content: center;
 	}
 
 	.intensity-btn {
 		display: flex;
 		align-items: center;
-		gap: 4px;
-		padding: 6px 10px;
-		border-radius: 8px;
-		border: 1px solid rgba(255, 255, 255, 0.1);
+		gap: var(--space-1);
+		padding: var(--space-3) var(--space-3);
+		min-height: var(--btn-height-md);
+		border-radius: var(--radius-sm);
+		border: 1px solid var(--input-border);
 		background: transparent;
-		color: rgba(255, 255, 255, 0.7);
-		font-size: 0.72rem;
+		color: var(--text-secondary);
+		font-size: var(--text-sm);
 		cursor: pointer;
-		transition: all 0.15s;
+		transition: all var(--transition-fast);
+		-webkit-tap-highlight-color: transparent;
 	}
 
 	.intensity-btn:active {
@@ -76,29 +80,31 @@
 
 	.intensity-btn.selected {
 		border-color: var(--dot-color);
-		background: rgba(255, 255, 255, 0.05);
-		color: white;
+		background: var(--bg-card-hover);
+		color: var(--text-primary);
 	}
 
 	.intensity-dot {
-		width: 8px;
-		height: 8px;
-		border-radius: 50%;
+		width: var(--space-2);
+		height: var(--space-2);
+		border-radius: var(--radius-full);
 		flex-shrink: 0;
 	}
 
 	.skip-btn {
 		display: block;
-		margin: 8px auto 0;
-		padding: 4px 16px;
+		margin: var(--space-2) auto 0;
+		padding: var(--space-2) var(--space-4);
+		min-height: var(--btn-height-sm);
 		border: none;
 		background: transparent;
-		color: rgba(255, 255, 255, 0.4);
-		font-size: 0.72rem;
+		color: var(--text-muted);
+		font-size: var(--text-sm);
 		cursor: pointer;
+		-webkit-tap-highlight-color: transparent;
 	}
 
 	.skip-btn:hover {
-		color: rgba(255, 255, 255, 0.6);
+		color: var(--text-secondary);
 	}
 </style>

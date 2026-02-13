@@ -18,6 +18,8 @@ if [ -z "$STAGED_FILES" ]; then
 fi
 
 # Patterns that indicate personal data or local paths
+# Note: 'password' removed — too many false positives in P2P sharing code
+# that legitimately references password as a feature parameter
 PERSONAL_PATTERNS=(
     'C:\\Users\\'
     'C:/Users/'
@@ -32,8 +34,6 @@ PERSONAL_PATTERNS=(
     'API_KEY'
     'secret_key'
     'SECRET_KEY'
-    'password'
-    'PASSWORD'
 )
 
 # Check each staged file for personal data patterns

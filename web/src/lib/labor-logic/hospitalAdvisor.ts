@@ -47,7 +47,7 @@ export function getRangeEstimate(
 	else if (completed.length >= 6) confidence = 'medium';
 
 	const patternSummary = stats.avgIntervalMin > 0
-		? `Contractions ~${stats.avgIntervalMin.toFixed(0)} min apart, ~${Math.round(stats.avgDurationSec)}s each`
+		? `~${stats.avgIntervalMin.toFixed(0)} min between contractions, ~${Math.round(stats.avgDurationSec)}s each`
 		: 'Not enough data for pattern analysis';
 
 	let trendSummary: string | null = null;
@@ -59,11 +59,11 @@ export function getRangeEstimate(
 		const trend = getTrend(intervals);
 		if (trend) {
 			if (trend.direction === 'decreasing') {
-				trendSummary = `Intervals getting shorter (${trend.firstValue.toFixed(0)} min \u2192 ${trend.lastValue.toFixed(0)} min)`;
+				trendSummary = `Getting closer together (${trend.firstValue.toFixed(0)} \u2192 ${trend.lastValue.toFixed(0)} min apart)`;
 			} else if (trend.direction === 'increasing') {
-				trendSummary = `Intervals getting longer (${trend.firstValue.toFixed(0)} min \u2192 ${trend.lastValue.toFixed(0)} min)`;
+				trendSummary = `Spacing out (${trend.firstValue.toFixed(0)} \u2192 ${trend.lastValue.toFixed(0)} min apart)`;
 			} else {
-				trendSummary = `Intervals steady around ~${stats.avgIntervalMin.toFixed(0)} min`;
+				trendSummary = `Steady pace, ~${stats.avgIntervalMin.toFixed(0)} min apart`;
 			}
 		}
 	}

@@ -1,6 +1,134 @@
 # Changelog
 
-All notable changes to the Obsidian Contractions Timer plugin will be documented in this file.
+All notable changes to the Obsidian Contractions Timer plugin and PWA web app will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+
+Plugin versions use [Semantic Versioning](https://semver.org/). PWA web app changes are tracked by design round.
+
+## [Unreleased]
+
+## [Web R12] - 2026-02-13
+
+### Added
+- **P2P live sharing**: Real-time collaboration via WebRTC with Y.js CRDT conflict resolution
+  - **Quick Connect**: One-tap room codes (`blue-tiger-42`) with automatic signaling via HTTP relay (ntfy.sh or Cloudflare Worker)
+  - **Private Connect**: Zero-server mode with manual SDP exchange (QR codes or copy-paste)
+  - **End-to-end encryption**: AES-256-GCM with PBKDF2 key derivation (100k iterations). Signaling relays only see encrypted blobs and routing hashes.
+  - **Optional password**: Adds extra encryption layer on top of room code. Dice button auto-generates memorable passphrases (`calm-ember-frost-42`).
+  - **QR code sharing**: Generate and scan QR codes for room URLs, invite codes, and response codes. Password baked into URL hash fragment.
+  - **Auto-generated display names**: Pre-filled with friendly names (e.g., "Amber", "Breeze") — editable
+  - **Connection progress indicators**: Phase-by-phase status ("Creating secure room...", "Waiting for partner...", "Completing handshake...")
+  - **Wrong password detection**: Distinguishes "room not found" from "wrong password" errors
+  - **Configurable servers**: STUN (Google, Cloudflare, custom), TURN (Open Relay, custom), signaling backend (ntfy.sh, CF Worker, custom)
+  - **Tabbed UI**: Quick Connect vs Private Connect tabs with distinct visual sections
+- **Hamburger menu**: Slide-out drawer for settings, themes, session management, sharing, export, and about
+- **Header bar**: Fixed top bar with branding and hamburger toggle
+- **Session archiving**: Archive current session and start fresh, restore or delete previous sessions
+- **Storage warning**: Notification when localStorage quota is approaching limits
+- **Sidebar navigation** (desktop): Persistent side nav for wider screens
+- **Seed data**: Demo data generator for development and testing
+
+### Fixed
+- **Pause + delete stuck state**: Deleting the last contraction while paused no longer leaves the pause overlay stuck with no way to dismiss. Pause state now resets when contractions array becomes empty.
+
+## [Web R11] - 2026-02-12
+
+### Fixed
+- **Settings deep-navigation**: Cog buttons and settings links now open the hamburger menu directly to the settings tab and scroll to the correct section (was opening to main menu tab)
+- **Select dropdown white-on-white**: Native `<option>` elements now use theme colors via `:global()` CSS escape
+
+### Added
+- **Water break undo label**: Undo button shows visible "Undo" text next to the icon
+- **Stat chance text**: Water break percentages show "chance" suffix for clarity (e.g., "8-15% chance")
+- **Inline provider phone entry**: Enter provider phone number directly on the hospital page (expandable tel input) instead of navigating to settings
+- **5-1-1 rule toggle**: New setting to hide threshold rule progress for users who don't use the 5-1-1 rule
+- **Sky palette**: Colored-background theme — soft blue (light) / deep navy (dark)
+- **Blush palette**: Colored-background theme — soft pink (light) / deep plum (dark)
+- Total theme count: 20 (10 palettes x 2 modes)
+
+## [Web R10] - 2026-02-12
+
+### Added
+- **Undo confirmation**: Water break removal requires two-tap confirm (prevents accidental undo)
+- **Provider phone button**: Tappable button to navigate to settings for phone entry
+- **Water break stats redesign**: Progress bars with bold percentages and descriptive labels
+- **BH vs Real Labor comparison**: Row-based layout with icons (Clock, Activity, Footprints, MapPinned, TrendingUp)
+- **Warning signs icons**: Per-item icons on warning signs card (Droplets, Baby, AlertTriangle, etc.)
+- **Cervix dilation rings**: SVG ring visuals showing dilation progress in labor stage reference
+
+## [Web R9] - 2026-02-11
+
+### Added
+- **Hospital advisor page**: Full 4-section layout — Departure Advice, 5-1-1 Rule Progress, Water Break Info, Clinical Reference
+- **Collapsible sections**: Reorderable with up/down arrows + settings cog buttons
+- **Hospital advisor algorithm**: 4-tier departure advice (stay home, prepare, call provider, go now)
+- **Water break quick action**: Record with time picker (just now, ~5 min ago, etc.) + custom stepper
+- **Clinical reference**: Labor stages table, warning signs, BH comparison chart
+
+## [Web R8] - 2026-02-11
+
+### Added
+- **Design token system**: CSS custom properties for spacing (`--space-1` to `--space-8`), border radii, typography scale
+- Migrated all components from hardcoded values to design tokens
+- Consistent spacing and sizing across all 4 pages
+
+## [Web R7] - 2026-02-11
+
+### Added
+- Theme picker polish with palette swatches and light/dark toggle
+- Hamburger menu refinement (tabs: menu, settings)
+- Settings reorganization into logical sections
+
+## [Web R6] - 2026-02-11
+
+### Added
+- **Onboarding flow**: 3-step welcome walkthrough for first-time users
+- **Contextual tips**: Educational tips that change based on labor stage
+- **Empty states**: Dashboard and History pages show helpful messages when no data
+- **Session controls**: Improved pause/resume/clear UI
+
+## [Web R5] - 2026-02-11
+
+### Added
+- Empty states for Dashboard and History pages
+- Dashboard polish and history timeline improvements
+
+## [Web R4] - 2026-02-11
+
+### Added
+- **Theme expansion**: 8 palettes (Clinical, Soft, Warm, Ocean, Forest, Sunset, Lavender, Midnight)
+- Contrast fixes for dark themes
+- Wave chart refinement
+
+## [Web R3] - 2026-02-11
+
+### Added
+- Dark theme contrast audit and fixes
+- Typography scale refinement
+- Bottom nav redesign
+
+## [Web R2] - 2026-02-11
+
+### Added
+- Timer page layout improvements
+- Big button sizing refinement
+- Post-rating flow polish
+
+## [Web R1] - 2026-02-11
+
+### Added
+- Initial visual polish pass
+- Spacing and color consistency improvements
+
+## [Web R0] - 2026-02-11
+
+### Added
+- Storage hardening (localStorage safety, quota warnings)
+- Accessibility improvements
+- Event types (water break tracking)
+- Session management
+- Advanced settings (BH thresholds, stage boundaries)
 
 ## [0.1.17] - 2026-02-09
 

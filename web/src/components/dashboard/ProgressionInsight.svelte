@@ -4,23 +4,24 @@
 	import { getDurationSeconds, getSessionFilteredIntervals, getLatestSession, getTrend, estimateTimeTo511 } from '../../lib/labor-logic/calculations';
 	import { formatDurationShort, formatInterval } from '../../lib/labor-logic/formatters';
 
-	$: gapMin = $settings.chartGapThresholdMin;
-	$: threshold = $settings.threshold;
+	let gapMin = $derived($settings.chartGapThresholdMin);
+	let thresholdVal = $derived($settings.threshold);
 
-	$: allCompleted = $session.contractions.filter(c => c.end !== null);
-	$: completed = gapMin > 0 ? getLatestSession(allCompleted, gapMin) : allCompleted;
-	$: hasEnough = completed.length >= 4;
+	let allCompleted = $derived($session.contractions.filter(c => c.end !== null));
+	let completed = $derived(gapMin > 0 ? getLatestSession(allCompleted, gapMin) : allCompleted);
+	let hasEnough = $derived(completed.length >= 4);
 
-	$: durations = completed.map(getDurationSeconds);
-	$: intervals = gapMin > 0
-		? getSessionFilteredIntervals(completed, gapMin)
-		: completed.slice(1).map((c, i) =>
+	let durations = $derived(completed.map(getDurationSeconds));
+	let intervals = $derived.by(() => {
+		if (gapMin > 0) return getSessionFilteredIntervals(completed, gapMin);
+		return completed.slice(1).map((c, i) =>
 			(new Date(c.start).getTime() - new Date(completed[i].start).getTime()) / 60000
 		);
+	});
 
-	$: durationTrend = hasEnough ? getTrend(durations) : null;
-	$: intervalTrend = hasEnough && intervals.length >= 3 ? getTrend(intervals) : null;
-	$: estimate = hasEnough ? estimateTimeTo511(completed, threshold, gapMin) : null;
+	let durationTrend = $derived(hasEnough ? getTrend(durations) : null);
+	let intervalTrend = $derived(hasEnough && intervals.length >= 3 ? getTrend(intervals) : null);
+	let estimate = $derived(hasEnough ? estimateTimeTo511(completed, thresholdVal, gapMin) : null);
 </script>
 
 <div class="insight">
@@ -54,9 +55,9 @@
 		{#if estimate !== null}
 			<div class="estimate">
 				{#if estimate === 0}
-					{threshold.intervalMinutes}-1-1 criteria currently met
+					{thresholdVal.intervalMinutes}-1-1 criteria currently met
 				{:else}
-					At this pace, may reach {threshold.intervalMinutes}-1-1 in ~{estimate} min
+					At this pace, may reach {thresholdVal.intervalMinutes}-1-1 in ~{estimate} min
 				{/if}
 			</div>
 			<div class="disclaimer">Based on last {intervals.length} interval{intervals.length !== 1 ? 's' : ''} (this session)</div>
@@ -67,50 +68,50 @@
 <style>
 	.placeholder {
 		text-align: center;
-		padding: 16px;
-		color: rgba(255, 255, 255, 0.3);
-		font-size: 0.78rem;
+		padding: var(--space-4);
+		color: var(--text-faint);
+		font-size: var(--text-sm);
 	}
 
 	.section-label {
-		font-size: 0.82rem;
+		font-size: var(--text-base);
 		font-weight: 600;
-		color: rgba(255, 255, 255, 0.7);
-		margin-bottom: 8px;
+		color: var(--text-secondary);
+		margin-bottom: var(--space-2);
 	}
 
 	.insight-row {
-		margin-bottom: 6px;
+		margin-bottom: var(--space-2);
 	}
 
 	.label {
-		font-size: 0.78rem;
-		color: rgba(255, 255, 255, 0.5);
+		font-size: var(--text-sm);
+		color: var(--text-muted);
 	}
 
 	.value {
-		font-size: 0.78rem;
-		color: rgba(255, 255, 255, 0.7);
+		font-size: var(--text-sm);
+		color: var(--text-secondary);
 	}
 
-	.value--decreasing { color: #4ade80; }
-	.value--increasing { color: #f87171; }
-	.value--stable { color: rgba(255, 255, 255, 0.5); }
+	.value--decreasing { color: var(--success); }
+	.value--increasing { color: var(--danger); }
+	.value--stable { color: var(--text-muted); }
 
 	.estimate {
-		margin-top: 10px;
-		padding: 8px 12px;
-		background: rgba(129, 140, 248, 0.06);
-		border: 1px solid rgba(129, 140, 248, 0.15);
-		border-radius: 8px;
-		font-size: 0.78rem;
-		color: #a5b4fc;
+		margin-top: var(--space-3);
+		padding: var(--space-2) var(--space-3);
+		background: var(--accent-muted);
+		border: 1px solid var(--accent-muted);
+		border-radius: var(--radius-sm);
+		font-size: var(--text-sm);
+		color: var(--accent);
 	}
 
 	.disclaimer {
-		font-size: 0.68rem;
-		color: rgba(255, 255, 255, 0.25);
-		margin-top: 4px;
+		font-size: var(--text-xs);
+		color: var(--text-faint);
+		margin-top: var(--space-1);
 		text-align: center;
 	}
 </style>

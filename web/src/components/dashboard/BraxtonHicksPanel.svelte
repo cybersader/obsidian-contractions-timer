@@ -3,17 +3,29 @@
 	import { settings } from '../../lib/stores/settings';
 	import { assessBraxtonHicks } from '../../lib/labor-logic/braxtonHicksAssessment';
 
-	$: assessment = $session.contractions.filter(c => c.end !== null).length >= 4
-		? assessBraxtonHicks($session.contractions, $session.events, $settings.bhThresholds, $settings.chartGapThresholdMin)
-		: null;
+	let assessment = $derived.by(() => {
+		const completedCount = $session.contractions.filter(c => c.end !== null).length;
+		if (completedCount < 4) return null;
+		return assessBraxtonHicks($session.contractions, $session.events, $settings.bhThresholds, $settings.chartGapThresholdMin);
+	});
 
-	$: verdictColor = assessment?.verdict === 'likely-real-labor' ? 'verdict--real'
+	let verdictColor = $derived(
+		assessment?.verdict === 'likely-real-labor' ? 'verdict--real'
 		: assessment?.verdict === 'likely-braxton-hicks' ? 'verdict--bh'
-		: 'verdict--uncertain';
+		: 'verdict--uncertain'
+	);
 
-	$: verdictLabel = assessment?.verdict === 'likely-real-labor' ? 'Likely real labor'
+	let verdictLabel = $derived(
+		assessment?.verdict === 'likely-real-labor' ? 'Likely real labor'
 		: assessment?.verdict === 'likely-braxton-hicks' ? 'Likely practice contractions'
-		: 'Mixed signals';
+		: 'Mixed signals'
+	);
+
+	let expandedCriterion = $state<string | null>(null);
+
+	function toggleCriterion(name: string) {
+		expandedCriterion = expandedCriterion === name ? null : name;
+	}
 </script>
 
 {#if assessment && !assessment.requiresMore}
@@ -25,13 +37,23 @@
 
 		<div class="criteria-list">
 			{#each assessment.criteria as criterion}
-				<div class="criterion" class:met={criterion.result === 'real-labor'} class:bh={criterion.result === 'braxton-hicks'}>
+				<button
+					class="criterion"
+					class:met={criterion.result === 'real-labor'}
+					class:bh={criterion.result === 'braxton-hicks'}
+					onclick={() => toggleCriterion(criterion.name)}
+				>
 					<span class="criterion-check">{criterion.result === 'real-labor' ? '●' : criterion.result === 'braxton-hicks' ? '○' : '◐'}</span>
 					<span class="criterion-name">{criterion.name}</span>
-					{#if criterion.detail}
+					{#if criterion.detail && expandedCriterion !== criterion.name}
 						<span class="criterion-detail">— {criterion.detail}</span>
 					{/if}
-				</div>
+				</button>
+				{#if expandedCriterion === criterion.name && criterion.detail}
+					<div class="criterion-expanded">
+						{criterion.detail}
+					</div>
+				{/if}
 			{/each}
 		</div>
 
@@ -41,80 +63,97 @@
 
 <style>
 	.bh-panel {
-		background: rgba(255, 255, 255, 0.02);
-		border: 1px solid rgba(255, 255, 255, 0.06);
-		border-radius: 12px;
-		padding: 14px;
-		margin-bottom: 12px;
+		background: var(--bg-card);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-md);
+		padding: var(--space-3);
+		margin-bottom: var(--space-3);
 	}
 
 	.panel-header {
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
-		margin-bottom: 10px;
+		margin-bottom: var(--space-3);
 	}
 
 	.panel-title {
-		font-size: 0.82rem;
+		font-size: var(--text-base);
 		font-weight: 600;
-		color: rgba(255, 255, 255, 0.7);
+		color: var(--text-secondary);
 	}
 
 	.verdict-badge {
-		font-size: 0.68rem;
-		padding: 2px 8px;
-		border-radius: 6px;
+		font-size: var(--text-xs);
+		padding: var(--space-1) var(--space-2);
+		border-radius: var(--radius-sm);
 		font-weight: 600;
 	}
 
 	.verdict--real {
-		background: rgba(248, 113, 113, 0.12);
-		color: #f87171;
+		background: var(--danger-muted);
+		color: var(--danger);
 	}
 
 	.verdict--bh {
-		background: rgba(255, 255, 255, 0.06);
-		color: rgba(255, 255, 255, 0.5);
+		background: var(--border);
+		color: var(--text-muted);
 	}
 
 	.verdict--uncertain {
-		background: rgba(251, 191, 36, 0.1);
-		color: #fbbf24;
+		background: var(--warning-muted);
+		color: var(--warning);
 	}
 
 	.criteria-list {
 		display: flex;
 		flex-direction: column;
-		gap: 5px;
+		gap: var(--space-1);
 	}
 
 	.criterion {
 		display: flex;
 		align-items: baseline;
-		gap: 6px;
-		font-size: 0.75rem;
-		color: rgba(255, 255, 255, 0.4);
+		gap: var(--space-2);
+		font-size: var(--text-sm);
+		color: var(--text-muted);
+		background: none;
+		border: none;
+		padding: var(--space-1) 0;
+		cursor: pointer;
+		text-align: left;
+		width: 100%;
+		-webkit-tap-highlight-color: transparent;
 	}
 
-	.criterion.met { color: #f87171; }
-	.criterion.bh { color: rgba(255, 255, 255, 0.35); }
+	.criterion.met { color: var(--danger); }
+	.criterion.bh { color: var(--text-faint); }
 
-	.criterion-check { font-size: 0.6rem; flex-shrink: 0; }
+	.criterion-check { font-size: var(--text-xs); flex-shrink: 0; }
 	.criterion-name { white-space: nowrap; }
 
 	.criterion-detail {
-		color: rgba(255, 255, 255, 0.25);
-		font-size: 0.68rem;
+		color: var(--text-faint);
+		font-size: var(--text-xs);
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
 
+	.criterion-expanded {
+		font-size: var(--text-xs);
+		color: var(--text-muted);
+		background: var(--bg-card-hover);
+		border-radius: var(--radius-sm);
+		padding: var(--space-2) var(--space-2);
+		margin: 0 0 var(--space-1) var(--space-5);
+		line-height: 1.4;
+	}
+
 	.disclaimer {
-		font-size: 0.65rem;
-		color: rgba(255, 255, 255, 0.2);
-		margin-top: 10px;
+		font-size: var(--text-xs);
+		color: var(--text-faint);
+		margin-top: var(--space-3);
 		text-align: center;
 		font-style: italic;
 	}

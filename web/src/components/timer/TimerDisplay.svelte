@@ -4,61 +4,95 @@
 	import { isContractionActive, getElapsedSeconds, getRestSeconds } from '../../lib/labor-logic/calculations';
 	import { formatDuration, formatRestTime } from '../../lib/labor-logic/formatters';
 	import { settings } from '../../lib/stores/settings';
+	import PauseOverlay from './PauseOverlay.svelte';
 
-	$: phase = $timerPhase;
-	$: void $tick; // reactive dependency on tick
+	interface Props {
+		paused?: boolean;
+		onPauseToggle?: () => void;
+	}
+	let { paused = false, onPauseToggle = () => {} } = $props<Props>();
 
-	$: activeContraction = $session.contractions.find(c => isContractionActive(c));
-	$: elapsed = activeContraction ? getElapsedSeconds(activeContraction) : 0;
-	$: rest = getRestSeconds($session.contractions);
+	let phase = $derived($timerPhase);
 
-	$: displayTime = phase === 'contracting'
-		? formatDuration(elapsed)
-		: phase === 'resting'
-			? formatRestTime(rest, $settings.showRestSeconds)
-			: '0:00';
+	let elapsed = $derived.by(() => {
+		void $tick; // force re-evaluate every 200ms
+		const active = $session.contractions.find(c => isContractionActive(c));
+		if (!active) return 0;
+		return getElapsedSeconds(active);
+	});
 
-	$: label = phase === 'contracting'
-		? 'Contraction'
-		: phase === 'resting'
-			? 'Rest'
-			: 'Ready';
+	let rest = $derived.by(() => {
+		void $tick;
+		if (paused) return getRestSeconds($session.contractions); // still compute but don't animate
+		return getRestSeconds($session.contractions);
+	});
+
+	let displayTime = $derived(
+		phase === 'contracting'
+			? formatDuration(elapsed)
+			: phase === 'resting'
+				? formatRestTime(rest, $settings.showRestSeconds)
+				: '0:00'
+	);
+
+	let label = $derived(
+		phase === 'contracting'
+			? 'Contraction'
+			: phase === 'resting'
+				? (paused ? 'Paused' : 'Rest')
+				: 'Ready'
+	);
 </script>
 
 <div class="timer-display">
 	<div class="timer-label">{label}</div>
-	<div class="timer-time" class:contracting={phase === 'contracting'} class:resting={phase === 'resting'}>
-		{displayTime}
+	<div class="timer-wrapper">
+		<div class="timer-time" class:contracting={phase === 'contracting'} class:resting={phase === 'resting'} class:dimmed={paused}>
+			{displayTime}
+		</div>
+		<PauseOverlay {paused} {phase} onToggle={onPauseToggle} />
 	</div>
 </div>
 
 <style>
 	.timer-display {
 		text-align: center;
-		padding: 16px 0;
+		padding: var(--space-4) 0;
 	}
 
 	.timer-label {
-		font-size: 0.75rem;
+		font-size: var(--text-xs);
 		text-transform: uppercase;
 		letter-spacing: 0.1em;
-		color: rgba(255, 255, 255, 0.5);
-		margin-bottom: 4px;
+		color: var(--text-muted);
+		margin-bottom: var(--space-1);
+	}
+
+	.timer-wrapper {
+		position: relative;
+		display: inline-block;
+		padding: var(--space-2) var(--space-4);
+		border-radius: var(--radius-md);
 	}
 
 	.timer-time {
 		font-family: 'JetBrains Mono', ui-monospace, monospace;
-		font-size: 3rem;
+		font-size: var(--text-3xl);
 		font-weight: 300;
-		color: rgba(255, 255, 255, 0.9);
+		color: var(--text-primary);
 		line-height: 1;
+		transition: opacity var(--transition-base);
 	}
 
 	.timer-time.contracting {
-		color: #f87171;
+		color: var(--danger);
 	}
 
 	.timer-time.resting {
-		color: #4ade80;
+		color: var(--success);
+	}
+
+	.timer-time.dimmed {
+		opacity: 0.3;
 	}
 </style>

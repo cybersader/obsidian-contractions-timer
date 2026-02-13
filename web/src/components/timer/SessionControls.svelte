@@ -1,65 +1,58 @@
 <script lang="ts">
 	import { session } from '../../lib/stores/session';
-	import { timerPhase } from '../../lib/stores/timer';
-	import { EMPTY_SESSION } from '../../lib/labor-logic/types';
-	import { haptic } from '../../lib/haptic';
 	import { settings } from '../../lib/stores/settings';
+	import { EMPTY_SESSION, DEFAULT_SETTINGS } from '../../lib/labor-logic/types';
+	import { haptic } from '../../lib/haptic';
+	import { newSession } from '../../lib/sessionArchive';
+	import { Undo2 } from 'lucide-svelte';
 
-	$: phase = $timerPhase;
-	$: hasContractions = $session.contractions.length > 0;
-	$: paused = $session.paused;
+	let hasContractions = $derived($session.contractions.length > 0);
 
-	let showClearConfirm = false;
-
-	function togglePause() {
-		if ($settings.hapticFeedback) haptic(30);
-		session.update(s => ({ ...s, paused: !s.paused }));
-	}
+	let showNewConfirm = $state(false);
 
 	function deleteLast() {
 		if ($settings.hapticFeedback) haptic(30);
-		session.update(s => ({
-			...s,
-			contractions: s.contractions.slice(0, -1),
-		}));
+		session.update(s => {
+			const contractions = s.contractions.slice(0, -1);
+			return {
+				...s,
+				contractions,
+				// Reset pause when no contractions remain (prevents stuck overlay)
+				paused: contractions.length === 0 ? false : s.paused,
+			};
+		});
 	}
 
-	function clearAll() {
-		if (!showClearConfirm) {
-			showClearConfirm = true;
+	function handleNewSession() {
+		if (!showNewConfirm) {
+			showNewConfirm = true;
 			return;
 		}
 		if ($settings.hapticFeedback) haptic(50);
+		newSession();
 		session.set({ ...EMPTY_SESSION, layout: [...EMPTY_SESSION.layout] });
-		showClearConfirm = false;
+		settings.set({ ...DEFAULT_SETTINGS });
+		showNewConfirm = false;
 	}
 </script>
 
 {#if hasContractions}
 	<div class="session-controls">
-		<button
-			class="ctrl-btn"
-			class:active={paused}
-			disabled={phase === 'contracting'}
-			on:click={togglePause}
-		>
-			{paused ? 'Resume' : 'Pause'}
+		<button class="ctrl-btn ctrl-btn--undo" onclick={deleteLast}>
+			<Undo2 size={14} aria-hidden="true" />
+			Undo last
 		</button>
 
-		<button class="ctrl-btn ctrl-btn--delete" on:click={deleteLast}>
-			Delete last
-		</button>
-
-		{#if showClearConfirm}
-			<button class="ctrl-btn ctrl-btn--danger" on:click={clearAll}>
-				Confirm clear
+		{#if showNewConfirm}
+			<button class="ctrl-btn ctrl-btn--danger" onclick={handleNewSession}>
+				Archive + start new
 			</button>
-			<button class="ctrl-btn" on:click={() => showClearConfirm = false}>
+			<button class="ctrl-btn" onclick={() => showNewConfirm = false}>
 				Cancel
 			</button>
 		{:else}
-			<button class="ctrl-btn ctrl-btn--clear" on:click={clearAll}>
-				Clear all
+			<button class="ctrl-btn ctrl-btn--new" onclick={handleNewSession}>
+				New session
 			</button>
 		{/if}
 	</div>
@@ -69,47 +62,37 @@
 	.session-controls {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 6px;
-		margin-top: 16px;
+		gap: var(--space-2);
+		margin-top: var(--space-4);
 		justify-content: center;
 	}
 
 	.ctrl-btn {
-		padding: 6px 14px;
-		border-radius: 8px;
-		border: 1px solid rgba(255, 255, 255, 0.1);
-		background: rgba(255, 255, 255, 0.03);
-		color: rgba(255, 255, 255, 0.5);
-		font-size: 0.75rem;
+		padding: var(--space-2) var(--space-4);
+		border-radius: var(--radius-sm);
+		border: 1px solid var(--input-border);
+		background: var(--bg-card);
+		color: var(--text-muted);
+		font-size: var(--text-sm);
 		cursor: pointer;
-		transition: all 0.15s ease;
+		transition: all var(--transition-fast);
 	}
 
-	.ctrl-btn:disabled {
-		opacity: 0.3;
-		cursor: not-allowed;
+	.ctrl-btn--undo {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-1);
 	}
 
-	.ctrl-btn.active {
-		background: rgba(129, 140, 248, 0.1);
-		border-color: rgba(129, 140, 248, 0.3);
-		color: #818cf8;
-	}
-
-	.ctrl-btn--delete {
-		color: rgba(251, 191, 36, 0.7);
-		border-color: rgba(251, 191, 36, 0.15);
-	}
-
-	.ctrl-btn--clear {
-		color: rgba(248, 113, 113, 0.6);
-		border-color: rgba(248, 113, 113, 0.15);
+	.ctrl-btn--new {
+		color: var(--accent);
+		border-color: var(--accent-muted);
 	}
 
 	.ctrl-btn--danger {
-		color: #f87171;
-		background: rgba(248, 113, 113, 0.1);
-		border-color: rgba(248, 113, 113, 0.3);
+		color: var(--danger);
+		background: var(--danger-muted);
+		border-color: var(--danger-muted);
 		font-weight: 600;
 	}
 </style>

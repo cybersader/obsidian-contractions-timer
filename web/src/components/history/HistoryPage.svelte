@@ -1,24 +1,52 @@
 <script lang="ts">
 	import { session } from '../../lib/stores/session';
 	import { settings } from '../../lib/stores/settings';
-	import { formatTime, formatDurationShort, formatInterval, getIntensityLabel, getLocationLabel, generateId, formatTimeShort } from '../../lib/labor-logic/formatters';
+	import { List } from 'lucide-svelte';
+	import { formatTime, formatDuration, formatDurationShort, formatInterval, getIntensityLabel, getLocationLabel, generateId, formatTimeShort, toTimeInputValue, applyTimeInput, parseDuration } from '../../lib/labor-logic/formatters';
 	import { getDurationSeconds, getIntervalMinutes } from '../../lib/labor-logic/calculations';
 	import { haptic } from '../../lib/haptic';
 	import type { Contraction } from '../../lib/labor-logic/types';
 
-	$: completed = $session.contractions.filter(c => c.end !== null);
-	$: reversed = [...completed].reverse();
-	$: eventsList = $session.events;
+	let completed = $derived($session.contractions.filter(c => c.end !== null));
+	let reversed = $derived([...completed].reverse());
+	let eventsList = $derived($session.events);
 
-	let editingId: string | null = null;
-	let editIntensity: number | null = null;
-	let editLocation: string | null = null;
+	let editingId: string | null = $state(null);
+	let editIntensity: number | null = $state(null);
+	let editLocation: string | null = $state(null);
+	let editStartTime = $state('');
+	let editEndTime = $state('');
+	let editDuration = $state('');
+	let confirmDelete = $state(false);
 
 	function startEdit(c: Contraction) {
 		if ($settings.hapticFeedback) haptic(20);
 		editingId = c.id;
 		editIntensity = c.intensity;
 		editLocation = c.location;
+		editStartTime = toTimeInputValue(new Date(c.start));
+		editEndTime = c.end ? toTimeInputValue(new Date(c.end)) : '';
+		editDuration = c.end ? formatDuration(getDurationSeconds(c)) : '';
+		confirmDelete = false;
+	}
+
+	function syncDurationFromEnd() {
+		const start = applyTimeInput(new Date(), editStartTime);
+		const end = applyTimeInput(new Date(), editEndTime);
+		if (start && end) {
+			let diffSec = (end.getTime() - start.getTime()) / 1000;
+			if (diffSec < 0) diffSec += 86400; // handle midnight crossing
+			if (diffSec > 0) editDuration = formatDuration(diffSec);
+		}
+	}
+
+	function syncEndFromDuration() {
+		const parsed = parseDuration(editDuration);
+		const start = applyTimeInput(new Date(), editStartTime);
+		if (parsed !== null && parsed > 0 && start) {
+			const end = new Date(start.getTime() + parsed * 1000);
+			editEndTime = toTimeInputValue(end);
+		}
 	}
 
 	function saveEdit() {
@@ -26,9 +54,18 @@
 		const id = editingId;
 		session.update(s => ({
 			...s,
-			contractions: s.contractions.map(c =>
-				c.id === id ? { ...c, intensity: editIntensity, location: editLocation as any } : c
-			),
+			contractions: s.contractions.map(c => {
+				if (c.id !== id) return c;
+				let newStart = c.start;
+				let newEnd = c.end;
+				const startDate = applyTimeInput(new Date(c.start), editStartTime);
+				if (startDate) newStart = startDate.toISOString();
+				if (c.end) {
+					const endDate = applyTimeInput(new Date(c.end), editEndTime);
+					if (endDate) newEnd = endDate.toISOString();
+				}
+				return { ...c, start: newStart, end: newEnd, intensity: editIntensity, location: editLocation as any };
+			}),
 		}));
 		editingId = null;
 	}
@@ -39,10 +76,15 @@
 
 	function deleteContraction(id: string) {
 		if ($settings.hapticFeedback) haptic(30);
-		session.update(s => ({
-			...s,
-			contractions: s.contractions.filter(c => c.id !== id),
-		}));
+		session.update(s => {
+			const contractions = s.contractions.filter(c => c.id !== id);
+			return {
+				...s,
+				contractions,
+				// Reset pause when no contractions remain (prevents stuck overlay)
+				paused: contractions.length === 0 ? false : s.paused,
+			};
+		});
 		editingId = null;
 	}
 </script>
@@ -52,7 +94,11 @@
 
 	{#if reversed.length === 0}
 		<div class="empty-state">
-			<p>No contractions recorded yet.</p>
+			<div class="empty-state-icon">
+				<List size={24} aria-hidden="true" />
+			</div>
+			<p class="empty-state-title">No contractions yet</p>
+			<p class="empty-state-hint">Your contraction history will appear here. Tap each entry to edit timing, intensity, or location.</p>
 		</div>
 	{:else}
 		<div class="history-list">
@@ -69,10 +115,10 @@
 				}) as event}
 					<div class="event-row event--{event.type}">
 						<span class="event-icon">
-							{event.type === 'water-break' ? '💧' : '📌'}
+							{event.type === 'water-break' ? '💧' : event.type === 'mucus-plug' ? '🔴' : event.type === 'bloody-show' ? '🩸' : '📌'}
 						</span>
 						<span class="event-text">
-							{event.type === 'water-break' ? 'Water broke' : event.type} at {formatTime(event.timestamp)}
+							{event.type === 'water-break' ? 'Water broke' : event.type === 'mucus-plug' ? 'Mucus plug' : event.type === 'bloody-show' ? 'Bloody show' : event.type} at {formatTime(event.timestamp)}
 						</span>
 					</div>
 				{/each}
@@ -82,7 +128,22 @@
 					<div class="editor-card">
 						<div class="editor-header">
 							<span>Editing #{idx + 1}</span>
-							<span class="editor-time">{formatTime(c.start)}</span>
+						</div>
+						<div class="editor-time-row">
+							<div class="editor-field">
+								<span class="editor-label">Start</span>
+								<input type="time" class="editor-time-input" bind:value={editStartTime} />
+							</div>
+							{#if c.end}
+								<div class="editor-field">
+									<span class="editor-label">End</span>
+									<input type="time" class="editor-time-input" bind:value={editEndTime} onchange={syncDurationFromEnd} />
+								</div>
+								<div class="editor-field">
+									<span class="editor-label">Duration</span>
+									<input type="text" class="editor-duration-input" bind:value={editDuration} placeholder="M:SS" onchange={syncEndFromDuration} />
+								</div>
+							{/if}
 						</div>
 						<div class="editor-section">
 							<span class="editor-label">Intensity</span>
@@ -92,12 +153,12 @@
 										class="editor-pill"
 										class:selected={editIntensity === level}
 										style="--dot-color: var(--color-intensity-{level})"
-										on:click={() => editIntensity = level}
+										onclick={() => editIntensity = level}
 									>
 										{level}
 									</button>
 								{/each}
-								<button class="editor-pill" class:selected={editIntensity === null} on:click={() => editIntensity = null}>
+								<button class="editor-pill" class:selected={editIntensity === null} onclick={() => editIntensity = null}>
 									None
 								</button>
 							</div>
@@ -109,25 +170,29 @@
 									<button
 										class="editor-pill"
 										class:selected={editLocation === val}
-										on:click={() => editLocation = val}
+										onclick={() => editLocation = val}
 									>
 										{label}
 									</button>
 								{/each}
-								<button class="editor-pill" class:selected={editLocation === null} on:click={() => editLocation = null}>
+								<button class="editor-pill" class:selected={editLocation === null} onclick={() => editLocation = null}>
 									None
 								</button>
 							</div>
 						</div>
 						<div class="editor-actions">
-							<button class="editor-btn editor-btn--save" on:click={saveEdit}>Save</button>
-							<button class="editor-btn" on:click={cancelEdit}>Cancel</button>
-							<button class="editor-btn editor-btn--delete" on:click={() => deleteContraction(c.id)}>Delete</button>
+							<button class="editor-btn editor-btn--save" onclick={saveEdit}>Save</button>
+							<button class="editor-btn" onclick={cancelEdit}>Cancel</button>
+							{#if confirmDelete}
+								<button class="editor-btn editor-btn--delete-confirm" onclick={() => deleteContraction(c.id)}>Confirm delete</button>
+							{:else}
+								<button class="editor-btn editor-btn--delete" onclick={() => confirmDelete = true}>Delete</button>
+							{/if}
 						</div>
 					</div>
 				{:else}
 					<!-- Normal row -->
-					<button class="history-item" on:click={() => startEdit(c)}>
+					<button class="history-item" onclick={() => startEdit(c)}>
 						<div class="item-num">#{idx + 1}</div>
 						<div class="item-details">
 							<div class="item-time">{formatTime(c.start)}</div>
@@ -160,43 +225,52 @@
 </div>
 
 <style>
-	.empty-state { text-align: center; padding: 48px 16px; color: rgba(255, 255, 255, 0.4); font-size: 0.9rem; }
+	/* empty-state styles are in app.css */
 
-	.history-list { display: flex; flex-direction: column; gap: 4px; }
+	.history-list { display: flex; flex-direction: column; gap: var(--space-1); }
 
 	.history-item {
-		display: flex; align-items: center; gap: 10px; padding: 10px 12px;
-		background: rgba(255, 255, 255, 0.02); border-radius: 10px;
+		display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-3);
+		background: var(--bg-card); border-radius: var(--radius-md);
 		border: none; width: 100%; text-align: left; cursor: pointer;
 		-webkit-tap-highlight-color: transparent;
 	}
-	.history-item:active { background: rgba(255, 255, 255, 0.05); }
+	.history-item:active { background: var(--bg-card-hover); }
 
-	.item-num { font-size: 0.72rem; color: rgba(255, 255, 255, 0.3); min-width: 28px; font-weight: 600; }
+	.item-num { font-size: var(--text-sm); color: var(--text-faint); min-width: 28px; font-weight: 600; }
 	.item-details { flex: 1; }
-	.item-time { font-size: 0.82rem; color: rgba(255, 255, 255, 0.8); }
-	.item-meta { font-size: 0.72rem; color: rgba(255, 255, 255, 0.4); margin-top: 2px; }
-	.sep { margin: 0 3px; }
-	.item-rating { display: flex; align-items: center; gap: 4px; font-size: 0.7rem; color: rgba(255, 255, 255, 0.5); }
-	.intensity-dot { width: 6px; height: 6px; border-radius: 50%; }
-	.intensity-label, .location-label { font-size: 0.68rem; }
+	.item-time { font-size: var(--text-base); color: var(--text-primary); }
+	.item-meta { font-size: var(--text-sm); color: var(--text-muted); margin-top: var(--space-1); }
+	.sep { margin: 0 var(--space-1); }
+	.item-rating { display: flex; align-items: center; gap: var(--space-1); font-size: var(--text-xs); color: var(--text-muted); }
+	.intensity-dot { width: 6px; height: 6px; border-radius: var(--radius-full); }
+	.intensity-label, .location-label { font-size: var(--text-xs); }
 
 	/* Event rows */
-	.event-row { display: flex; align-items: center; gap: 8px; padding: 6px 12px; font-size: 0.75rem; color: rgba(255, 255, 255, 0.5); }
-	.event--water-break { color: #60a5fa; }
-	.event-icon { font-size: 0.85rem; }
+	.event-row { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); font-size: var(--text-sm); color: var(--text-muted); }
+	.event--water-break { color: var(--water); }
+	.event-icon { font-size: var(--text-base); }
 
 	/* Editor */
-	.editor-card { background: rgba(129, 140, 248, 0.04); border: 1px solid rgba(129, 140, 248, 0.2); border-radius: 12px; padding: 12px; }
-	.editor-header { display: flex; justify-content: space-between; font-size: 0.82rem; color: rgba(255, 255, 255, 0.7); margin-bottom: 10px; }
-	.editor-time { color: rgba(255, 255, 255, 0.4); }
-	.editor-section { margin-bottom: 8px; }
-	.editor-label { font-size: 0.72rem; color: rgba(255, 255, 255, 0.4); margin-bottom: 4px; display: block; }
-	.editor-pills { display: flex; gap: 4px; flex-wrap: wrap; }
-	.editor-pill { padding: 4px 10px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(255, 255, 255, 0.03); color: rgba(255, 255, 255, 0.5); font-size: 0.72rem; cursor: pointer; }
-	.editor-pill.selected { background: rgba(129, 140, 248, 0.12); border-color: rgba(129, 140, 248, 0.3); color: #818cf8; }
-	.editor-actions { display: flex; gap: 6px; margin-top: 10px; }
-	.editor-btn { padding: 6px 14px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(255, 255, 255, 0.03); color: rgba(255, 255, 255, 0.5); font-size: 0.75rem; cursor: pointer; }
-	.editor-btn--save { background: rgba(129, 140, 248, 0.1); border-color: rgba(129, 140, 248, 0.3); color: #818cf8; font-weight: 600; }
-	.editor-btn--delete { color: #f87171; border-color: rgba(248, 113, 113, 0.2); margin-left: auto; }
+	.editor-card { background: var(--accent-muted); border: 1px solid var(--accent-muted); border-radius: var(--radius-md); padding: var(--space-3); }
+	.editor-header { display: flex; justify-content: space-between; font-size: var(--text-base); color: var(--text-secondary); margin-bottom: var(--space-3); }
+	.editor-time { color: var(--text-muted); }
+	.editor-section { margin-bottom: var(--space-2); }
+	.editor-label { font-size: var(--text-sm); color: var(--text-muted); margin-bottom: var(--space-1); display: block; }
+	.editor-pills { display: flex; gap: var(--space-1); flex-wrap: wrap; }
+	.editor-pill { padding: var(--space-1) var(--space-3); border-radius: var(--radius-sm); border: 1px solid var(--input-border); background: var(--bg-card); color: var(--text-muted); font-size: var(--text-sm); cursor: pointer; }
+	.editor-pill.selected { background: var(--accent-muted); border-color: var(--accent-muted); color: var(--accent); }
+	.editor-actions { display: flex; gap: var(--space-2); margin-top: var(--space-3); }
+	.editor-btn { padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); border: 1px solid var(--input-border); background: var(--bg-card); color: var(--text-muted); font-size: var(--text-sm); cursor: pointer; }
+	.editor-btn--save { background: var(--accent-muted); border-color: var(--accent-muted); color: var(--accent); font-weight: 600; }
+	.editor-btn--delete { color: var(--danger); border-color: var(--danger-muted); margin-left: auto; }
+	.editor-btn--delete-confirm { color: #fff; background: var(--danger); border-color: var(--danger); margin-left: auto; font-weight: 600; }
+
+	/* Time/duration editor row */
+	.editor-time-row { display: flex; gap: var(--space-2); margin-bottom: var(--space-2); }
+	.editor-field { flex: 1; display: flex; flex-direction: column; gap: var(--space-1); }
+	.editor-time-input, .editor-duration-input {
+		background: var(--input-bg); border: 1px solid var(--input-border); border-radius: var(--radius-sm);
+		color: var(--text-primary); padding: var(--space-2) var(--space-2); font-size: var(--text-sm); width: 100%;
+	}
 </style>

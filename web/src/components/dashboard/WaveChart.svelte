@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { onMount, afterUpdate } from 'svelte';
 	import { session } from '../../lib/stores/session';
 	import { settings } from '../../lib/stores/settings';
 	import { tick } from '../../lib/stores/timer';
@@ -17,22 +16,42 @@
 	const BREAK_WIDTH = 50;
 	const PADDING = 20;
 
-	let canvas: HTMLCanvasElement;
-	let container: HTMLElement;
-	let fitToView = false;
+	let canvas: HTMLCanvasElement | undefined = $state();
+	let container: HTMLElement | undefined = $state();
+	let fitToView = $state(false);
 
-	$: chartHeight = $settings.waveChartHeight || 150;
-	$: gapThresholdMin = $settings.chartGapThresholdMin || 30;
-	$: showOverlay = $settings.showChartOverlay;
-	$: threshold = $settings.threshold;
-	$: contractions = $session.contractions;
-	$: events = $session.events;
+	let chartHeight = $derived($settings.waveChartHeight || 150);
+	let gapThresholdMin = $derived($settings.chartGapThresholdMin || 30);
+	let showOverlay = $derived($settings.showChartOverlay);
+	let threshold = $derived($settings.threshold);
+	let contractions = $derived($session.contractions);
+	let events = $derived($session.events);
 
-	// Re-render on tick (for active contraction updates)
-	$: if ($tick && canvas) render();
+	// Re-render on tick (for active contraction updates) and data changes
+	$effect(() => {
+		void $tick;
+		void contractions;
+		void events;
+		void chartHeight;
+		void showOverlay;
+		void fitToView;
+		render();
+	});
 
-	onMount(() => { render(); });
-	afterUpdate(() => { render(); });
+	/** Read wave-specific CSS variables from the current theme */
+	function getWaveColors() {
+		const s = getComputedStyle(document.documentElement);
+		const v = (name: string) => s.getPropertyValue(name).trim();
+		return {
+			line: v('--wave-line') || 'rgba(255,255,255,0.1)',
+			grid: v('--wave-grid') || 'rgba(255,255,255,0.05)',
+			gridText: v('--wave-grid-text') || 'rgba(255,255,255,0.25)',
+			text: v('--wave-text') || 'rgba(255,255,255,0.3)',
+			thresholdOk: v('--wave-threshold-ok') || 'rgba(74,222,128,0.25)',
+			thresholdWarn: v('--wave-threshold-warn') || 'rgba(251,191,36,0.15)',
+			water: v('--water') || '#3b82f6',
+		};
+	}
 
 	function getIntensityColor(level: number, alpha: number): string {
 		const colors: Record<number, [number, number, number]> = {
@@ -97,10 +116,12 @@
 		const dpr = window.devicePixelRatio || 1;
 		const height = chartHeight;
 
+		const wc = getWaveColors();
+
 		if (totalContractions === 0) {
 			sizeCanvas(ctx, canvas, containerWidth, height, dpr);
 			ctx.clearRect(0, 0, containerWidth, height);
-			ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+			ctx.fillStyle = wc.text;
 			ctx.font = '13px system-ui, sans-serif';
 			ctx.textAlign = 'center';
 			ctx.fillText('Contractions will appear here', containerWidth / 2, height / 2);
@@ -129,7 +150,7 @@
 		const maxHeight = height - PADDING * 2;
 
 		// Draw baseline
-		ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+		ctx.strokeStyle = wc.line;
 		ctx.lineWidth = 1;
 		ctx.beginPath();
 		ctx.moveTo(PADDING, baseline);
@@ -157,11 +178,11 @@
 			const pixelsPerMinute = seg.durationMs > 0 ? segWidth / (seg.durationMs / 60000) : segWidth;
 
 			// Time grid
-			drawTimeGrid(ctx, seg.startMs, seg.durationMs, xOffset, segWidth, baseline, height, breakXPositions);
+			drawTimeGrid(ctx, seg.startMs, seg.durationMs, xOffset, segWidth, baseline, height, breakXPositions, wc);
 
 			// Threshold overlay
 			if (showOverlay && seg.contractions.length >= 2) {
-				drawThresholdOverlay(ctx, seg, xOffset, segWidth, baseline);
+				drawThresholdOverlay(ctx, seg, xOffset, segWidth, baseline, wc);
 			}
 
 			// Contractions
@@ -244,7 +265,7 @@
 			if (si < segments.length - 1) {
 				const nextSeg = segments[si + 1];
 				const gapMs = nextSeg.startMs - seg.endMs;
-				drawBreakMarker(ctx, xOffset, baseline, height, gapMs);
+				drawBreakMarker(ctx, xOffset, baseline, height, gapMs, wc);
 				xOffset += BREAK_WIDTH;
 			}
 		}
@@ -254,7 +275,7 @@
 			if (event.type !== 'water-break') continue;
 			const eventMs = new Date(event.timestamp).getTime();
 			const ex = getEventXPosition(eventMs, segments, totalDurationMs, contentWidth);
-			if (ex !== null) drawWaterBreakMarker(ctx, ex, baseline);
+			if (ex !== null) drawWaterBreakMarker(ctx, ex, baseline, wc);
 		}
 	}
 
@@ -267,17 +288,17 @@
 		ctx.scale(dpr, dpr);
 	}
 
-	function drawTimeGrid(ctx: CanvasRenderingContext2D, firstStartMs: number, timeRangeMs: number, chartLeft: number, chartWidth: number, baseline: number, height: number, breakXPos: number[]) {
+	function drawTimeGrid(ctx: CanvasRenderingContext2D, firstStartMs: number, timeRangeMs: number, chartLeft: number, chartWidth: number, baseline: number, height: number, breakXPos: number[], wc: ReturnType<typeof getWaveColors>) {
 		const timeRangeMin = timeRangeMs / 60000;
 		const gridMinutes = timeRangeMin <= 30 ? 5 : timeRangeMin <= 120 ? 15 : 30;
 		const gridMs = gridMinutes * 60000;
 		const firstGridTime = Math.ceil(firstStartMs / gridMs) * gridMs;
 		const endTime = firstStartMs + timeRangeMs;
 
-		ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+		ctx.strokeStyle = wc.grid;
 		ctx.lineWidth = 0.5;
 		ctx.font = '10px system-ui, sans-serif';
-		ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+		ctx.fillStyle = wc.gridText;
 		ctx.textAlign = 'center';
 
 		for (let t = firstGridTime; t <= endTime; t += gridMs) {
@@ -292,15 +313,15 @@
 		}
 	}
 
-	function drawThresholdOverlay(ctx: CanvasRenderingContext2D, seg: Segment, xOffset: number, segWidth: number, baseline: number) {
+	function drawThresholdOverlay(ctx: CanvasRenderingContext2D, seg: Segment, xOffset: number, segWidth: number, baseline: number, wc: ReturnType<typeof getWaveColors>) {
 		const thresholdMin = threshold.intervalMinutes;
 		for (let i = 1; i < seg.contractions.length; i++) {
 			const prev = new Date(seg.contractions[i - 1].start).getTime();
 			const curr = new Date(seg.contractions[i].start).getTime();
 			const interval = (curr - prev) / 60000;
 			let color: string | null = null;
-			if (interval <= thresholdMin) color = 'rgba(74, 222, 128, 0.3)';
-			else if (interval <= thresholdMin * 1.5) color = 'rgba(251, 191, 36, 0.2)';
+			if (interval <= thresholdMin) color = wc.thresholdOk;
+			else if (interval <= thresholdMin * 1.5) color = wc.thresholdWarn;
 			if (!color) continue;
 			const x1 = seg.durationMs > 0 ? xOffset + ((prev - seg.startMs) / seg.durationMs) * segWidth : xOffset;
 			const x2 = seg.durationMs > 0 ? xOffset + ((curr - seg.startMs) / seg.durationMs) * segWidth : xOffset + segWidth;
@@ -309,11 +330,11 @@
 		}
 	}
 
-	function drawBreakMarker(ctx: CanvasRenderingContext2D, x: number, baseline: number, height: number, gapMs: number) {
+	function drawBreakMarker(ctx: CanvasRenderingContext2D, x: number, baseline: number, height: number, gapMs: number, wc: ReturnType<typeof getWaveColors>) {
 		const midX = x + BREAK_WIDTH / 2;
 		const zigSize = 4;
 		ctx.save();
-		ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+		ctx.strokeStyle = wc.text;
 		ctx.lineWidth = 1.5;
 		ctx.setLineDash([3, 3]);
 		for (const dx of [-4, 4]) {
@@ -328,14 +349,15 @@
 		ctx.setLineDash([]);
 		ctx.restore();
 		ctx.font = '9px system-ui, sans-serif';
-		ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+		ctx.fillStyle = wc.text;
 		ctx.textAlign = 'center';
 		ctx.fillText(formatElapsedApprox(gapMs / 60000), midX, height - 3);
 	}
 
-	function drawWaterBreakMarker(ctx: CanvasRenderingContext2D, x: number, baseline: number) {
+	function drawWaterBreakMarker(ctx: CanvasRenderingContext2D, x: number, baseline: number, wc: ReturnType<typeof getWaveColors>) {
 		ctx.save();
-		ctx.strokeStyle = 'rgba(59, 130, 246, 0.7)';
+		ctx.strokeStyle = wc.water;
+		ctx.globalAlpha = 0.7;
 		ctx.lineWidth = 1.5;
 		ctx.setLineDash([5, 4]);
 		ctx.beginPath();
@@ -343,8 +365,9 @@
 		ctx.lineTo(x, baseline);
 		ctx.stroke();
 		ctx.setLineDash([]);
+		ctx.globalAlpha = 0.9;
 		ctx.font = '12px system-ui, sans-serif';
-		ctx.fillStyle = 'rgba(59, 130, 246, 0.9)';
+		ctx.fillStyle = wc.water;
 		ctx.textAlign = 'center';
 		ctx.fillText('💧', x, PADDING + 10);
 		ctx.restore();
@@ -371,7 +394,6 @@
 	function handleFit() { fitToView = true; }
 	function handleNow() {
 		fitToView = false;
-		render();
 		if (container) container.scrollLeft = container.scrollWidth;
 	}
 </script>
@@ -379,12 +401,12 @@
 <div class="wave-chart">
 	{#if contractions.filter(c => c.end !== null).length > 0 || contractions.some(isContractionActive)}
 		<div class="chart-toolbar">
-			<button class="chart-btn" on:click={handleFit}>Fit</button>
-			<button class="chart-btn" on:click={handleNow}>Now →</button>
+			<button class="chart-btn" onclick={handleFit}>Fit</button>
+			<button class="chart-btn" onclick={handleNow}>Now →</button>
 		</div>
 	{/if}
 	<div class="canvas-container" bind:this={container}>
-		<canvas bind:this={canvas}></canvas>
+		<canvas bind:this={canvas} role="img" aria-label="Contraction wave chart"></canvas>
 	</div>
 	{#if showOverlay}
 		<div class="chart-legend">Green = within {threshold.intervalMinutes} min</div>
@@ -393,44 +415,44 @@
 
 <style>
 	.wave-chart {
-		background: rgba(255, 255, 255, 0.02);
-		border: 1px solid rgba(255, 255, 255, 0.06);
-		border-radius: 12px;
-		padding: 10px;
-		margin-bottom: 12px;
+		background: var(--bg-card);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-md);
+		padding: var(--space-3);
+		margin-bottom: var(--space-3);
 	}
 
 	.chart-toolbar {
 		display: flex;
 		justify-content: flex-end;
-		gap: 6px;
-		margin-bottom: 6px;
+		gap: var(--space-2);
+		margin-bottom: var(--space-2);
 	}
 
 	.chart-btn {
-		padding: 3px 10px;
-		border-radius: 6px;
-		border: 1px solid rgba(255, 255, 255, 0.1);
-		background: rgba(255, 255, 255, 0.04);
-		color: rgba(255, 255, 255, 0.5);
-		font-size: 0.7rem;
+		padding: var(--space-1) var(--space-3);
+		border-radius: var(--radius-sm);
+		border: 1px solid var(--input-border);
+		background: var(--border-muted);
+		color: var(--text-muted);
+		font-size: var(--text-xs);
 		cursor: pointer;
 	}
 
-	.chart-btn:active { background: rgba(255, 255, 255, 0.08); }
+	.chart-btn:active { background: var(--border); }
 
 	.canvas-container {
 		overflow-x: auto;
 		-webkit-overflow-scrolling: touch;
 	}
 
-	.canvas-container::-webkit-scrollbar { height: 4px; }
-	.canvas-container::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 2px; }
+	.canvas-container::-webkit-scrollbar { height: var(--space-1); }
+	.canvas-container::-webkit-scrollbar-thumb { background: var(--input-border); border-radius: 2px; }
 
 	.chart-legend {
-		font-size: 0.68rem;
-		color: rgba(255, 255, 255, 0.3);
-		margin-top: 4px;
+		font-size: var(--text-xs);
+		color: var(--text-faint);
+		margin-top: var(--space-1);
 		text-align: center;
 	}
 </style>

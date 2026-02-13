@@ -7,6 +7,8 @@
 
 A mobile-friendly contraction timer that lives right inside your Obsidian notes. Track contractions with a big one-tap button, monitor the 5-1-1 rule with detailed progress, estimate your labor stage, get hospital departure advice, assess whether contractions are real or practice, and visualize patterns with a TOCO-style wave chart -- all stored as markdown-native data.
 
+**Also available as a standalone PWA at [contractions.app](https://contractions.app)** -- same features, no Obsidian required. Works offline, installable on any phone.
+
 <!-- TODO: Add screenshot/demo GIF here -->
 
 ## Features
@@ -293,6 +295,55 @@ All clinical data (stage duration ranges, water break statistics, contraction pa
 - **Location tracking helps**: Wrapping contractions that start in the back are more likely to be real labor. Front-only may be Braxton Hicks.
 - **Edit mistakes**: Tap any row in the timeline to fix times, duration, or ratings.
 - **Pattern assessment is a guide**: The practice vs. real labor assessment uses 6 clinical criteria but is not a medical diagnosis. When in doubt, call your provider.
+
+## PWA Web App
+
+The same contraction tracking features are available as a standalone Progressive Web App at **[contractions.app](https://contractions.app)**.
+
+### PWA Features
+- **Works on any device** -- Phone, tablet, desktop browser
+- **Installable** -- Add to home screen for a native app experience
+- **Works offline** -- Service worker caches the app for use without internet
+- **20 themes** -- 10 color palettes (Clinical, Soft, Warm, Ocean, Forest, Sunset, Lavender, Midnight, Sky, Blush) with light and dark modes
+- **4-page layout** -- Timer, Dashboard, History, Hospital Advisor (swipeable)
+- **Hospital advisor** -- 4-tier departure advice, 5-1-1 progress, water break tracking, clinical reference
+- **P2P live sharing** -- Real-time collaboration with your partner (see below)
+- **Data stays on your device** -- All data stored in localStorage, never sent to a server
+
+### P2P Live Sharing
+
+Share your contraction timer in real time with a partner or support person. No accounts, no cloud -- data syncs directly between devices via WebRTC.
+
+**Quick Connect** (recommended):
+1. Tap the sharing icon in the hamburger menu
+2. Tap "Start sharing" -- generates a room code like `blue-tiger-42`
+3. Partner enters the room code (or scans the QR code) on their device
+4. Both devices now see the same timer, updated in real time
+
+**Private Connect** (maximum privacy):
+1. Create an invite -- generates a one-time code
+2. Share the code (QR, link, or copy-paste) with your partner
+3. Partner enters the code and sends back a response code
+4. Connection established -- no signaling server involved
+
+**Security:**
+- All data encrypted end-to-end with AES-256-GCM before leaving your device
+- Optional password adds an extra encryption layer (dice button generates passphrases)
+- Quick Connect relays only see encrypted blobs and routing hashes (SHA-256)
+- Private Connect uses zero third-party servers (STUN only sees your IP, not session data)
+- STUN, TURN, and signaling servers are configurable in advanced settings
+
+### PWA Development
+
+```bash
+cd web
+bun install              # Install dependencies
+bun run dev              # Dev server at http://localhost:4321/
+bun run build            # Static build to web/dist/
+bun run test:screenshots # Playwright visual smoke tests (14 tests)
+```
+
+See `web/` directory for the full Astro + Svelte 5 source.
 
 ## Development
 

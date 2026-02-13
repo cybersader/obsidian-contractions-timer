@@ -196,6 +196,7 @@ export interface ContractionTimerSettings {
 	showBraxtonHicksAssessment: boolean;
 	showClinicalReference: boolean;
 	showWaterBreakButton: boolean;
+	showThresholdRule: boolean;
 	// Clinical reference data (editable)
 	waterBreakStats: WaterBreakStats;
 	// Advanced
@@ -290,6 +291,7 @@ export const DEFAULT_SETTINGS: ContractionTimerSettings = {
 	showBraxtonHicksAssessment: true,
 	showClinicalReference: true,
 	showWaterBreakButton: true,
+	showThresholdRule: true,
 	waterBreakStats: {
 		beforeContractions: '8-15%',
 		duringLabor: '~90%',
