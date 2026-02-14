@@ -35,6 +35,22 @@
 		typeof localStorage !== 'undefined' && !localStorage.getItem('ct-onboarding-done')
 	);
 
+	// Swipe hint: show once on first visit (mobile only)
+	let showSwipeHint = $state(false);
+	$effect(() => {
+		if (isDesktop || showOnboarding) return;
+		if (typeof localStorage === 'undefined') return;
+		if (localStorage.getItem('ct-swipe-hint-shown')) return;
+		// Delay slightly so the page renders first
+		const timer = setTimeout(() => {
+			showSwipeHint = true;
+			localStorage.setItem('ct-swipe-hint-shown', '1');
+			// Auto-hide after 2.5s
+			setTimeout(() => { showSwipeHint = false; }, 2500);
+		}, 800);
+		return () => clearTimeout(timer);
+	});
+
 	// Apply stored theme on mount
 	setTheme(getStoredTheme());
 
@@ -121,9 +137,8 @@
 		menuOpen = true;
 	}
 
-	// Check for #snapshot= hash parameter on load
-	$effect(() => {
-		if (typeof window === 'undefined') return;
+	// Check for #snapshot= hash parameter on load AND on hash change (Safari same-tab links)
+	function processSnapshotHash() {
 		if (!window.location.hash) return;
 		const hashParams = new URLSearchParams(window.location.hash.slice(1));
 		const snapshotCode = hashParams.get('snapshot');
@@ -135,6 +150,15 @@
 			pendingSharingRequest = true;
 			menuOpen = true;
 		}
+	}
+
+	$effect(() => {
+		if (typeof window === 'undefined') return;
+		// Check on mount
+		processSnapshotHash();
+		// Also listen for hash changes (e.g. clicking a snapshot link while already on the page)
+		window.addEventListener('hashchange', processSnapshotHash);
+		return () => window.removeEventListener('hashchange', processSnapshotHash);
 	});
 
 	// Check for ?room=, ?offer=, or ?answer= query parameter on load
@@ -211,6 +235,16 @@
 			<div class="swiper-slide"><HospitalPage /></div>
 		</div>
 	</div>
+
+	{#if showSwipeHint}
+		<div class="swipe-hint" aria-hidden="true">
+			<div class="swipe-hint-arrow">
+				<span class="swipe-hint-chevron">‹</span>
+				<span class="swipe-hint-text">swipe</span>
+				<span class="swipe-hint-chevron">›</span>
+			</div>
+		</div>
+	{/if}
 
 	<BottomNav {activeIndex} onTabClick={handleTabClick} />
 {/if}
@@ -309,6 +343,68 @@
 		cursor: pointer;
 		min-height: 44px;
 	}
+	/* Swipe hint */
+	.swipe-hint {
+		position: fixed;
+		bottom: calc(60px + env(safe-area-inset-bottom, 0px) + 16px);
+		left: 50%;
+		transform: translateX(-50%);
+		z-index: 50;
+		pointer-events: none;
+		animation: swipeHintFade 2.5s ease-out forwards;
+	}
+
+	.swipe-hint-arrow {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		padding: var(--space-2) var(--space-4);
+		background: var(--bg-card);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-full, 9999px);
+		box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+	}
+
+	.swipe-hint-chevron {
+		font-size: 18px;
+		font-weight: 700;
+		color: var(--accent);
+		animation: swipeHintBounce 1s ease-in-out infinite;
+	}
+
+	.swipe-hint-chevron:first-child {
+		animation-name: swipeHintBounceLeft;
+	}
+
+	.swipe-hint-chevron:last-child {
+		animation-name: swipeHintBounceRight;
+	}
+
+	.swipe-hint-text {
+		font-size: var(--text-xs);
+		font-weight: 600;
+		color: var(--text-muted);
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+	}
+
+	@keyframes swipeHintFade {
+		0% { opacity: 0; transform: translateX(-50%) translateY(8px); }
+		15% { opacity: 1; transform: translateX(-50%) translateY(0); }
+		75% { opacity: 1; }
+		100% { opacity: 0; }
+	}
+
+	@keyframes swipeHintBounceLeft {
+		0%, 100% { transform: translateX(0); }
+		50% { transform: translateX(-4px); }
+	}
+
+	@keyframes swipeHintBounceRight {
+		0%, 100% { transform: translateX(0); }
+		50% { transform: translateX(4px); }
+	}
+
 	/* Desktop layout */
 	.desktop-main {
 		margin-left: var(--sidebar-width, 220px);

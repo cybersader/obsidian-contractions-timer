@@ -21,6 +21,7 @@
 	import { getSignalingType } from '../../lib/p2p/quick-connect';
 	import { QRCodeToDataURL } from '../../lib/p2p/qr';
 	import { Copy, Share2, Eye, Pencil, Wifi, WifiOff, Users, Lock, Unlock, Shield, ChevronDown, ChevronUp, Settings, Camera, Dices, Loader2, ExternalLink, Download } from 'lucide-svelte';
+	import jsQR from 'jsqr';
 
 	interface Props {
 		/** Pre-filled offer code from URL parameter */
@@ -106,7 +107,8 @@
 	let copyFeedback = $state('');
 	let scanning = $state(false);
 	let scanVideoEl: HTMLVideoElement | undefined = $state();
-	let hasBarcodeDetector = $state(typeof globalThis !== 'undefined' && 'BarcodeDetector' in globalThis);
+	let scanCanvasEl: HTMLCanvasElement | undefined = $state();
+	let hasCamera = $state(typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia);
 
 	const status = $derived($peerState.status);
 	const roomCode = $derived($peerState.roomCode);
@@ -327,13 +329,13 @@
 		}
 	}
 
-	// --- QR Scanner (uses BarcodeDetector API — Chrome, Edge, Safari) ---
+	// --- QR Scanner (jsQR-based for cross-browser support) ---
 
 	let scanStream: MediaStream | null = null;
-	let scanInterval: ReturnType<typeof setInterval> | null = null;
+	let scanAnimFrame: number | null = null;
 
 	async function startQRScan(target: 'answer' | 'offer' | 'room') {
-		if (!hasBarcodeDetector) return;
+		if (!hasCamera) return;
 		try {
 			const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
 			scanStream = stream;
@@ -346,36 +348,44 @@
 				await scanVideoEl.play();
 			}
 
-			const detector = new (globalThis as any).BarcodeDetector({ formats: ['qr_code'] });
-			scanInterval = setInterval(async () => {
-				if (!scanVideoEl || scanVideoEl.readyState < 2) return;
-				try {
-					const barcodes = await detector.detect(scanVideoEl);
-					if (barcodes.length > 0) {
-						const raw = barcodes[0].rawValue;
+			const canvas = scanCanvasEl;
+			if (!canvas) return;
+			const ctx = canvas.getContext('2d', { willReadFrequently: true });
+			if (!ctx) return;
+
+			function scanFrame() {
+				if (!scanning || !scanVideoEl || scanVideoEl.readyState < 2) {
+					scanAnimFrame = requestAnimationFrame(scanFrame);
+					return;
+				}
+				const w = scanVideoEl.videoWidth;
+				const h = scanVideoEl.videoHeight;
+				if (w && h && canvas) {
+					canvas.width = w;
+					canvas.height = h;
+					ctx!.drawImage(scanVideoEl!, 0, 0, w, h);
+					const imageData = ctx!.getImageData(0, 0, w, h);
+					const result = jsQR(imageData.data, w, h, { inversionAttempts: 'dontInvert' });
+					if (result?.data) {
+						const raw = result.data;
 						stopQRScan();
 						if (target === 'room') {
-							// Parse room URL: ?room=code or ?room=code#key=password
 							try {
 								const url = new URL(raw);
 								const room = url.searchParams.get('room');
 								if (room) {
 									joinCode = room;
-									// Extract password from hash fragment (#key=...)
-									const hash = url.hash.slice(1); // remove '#'
+									const hash = url.hash.slice(1);
 									const hashParams = new URLSearchParams(hash);
 									const key = hashParams.get('key');
 									if (key) password = key;
 								} else {
-									// Maybe it's just a raw room code
 									joinCode = raw;
 								}
 							} catch {
-								// Not a URL — treat as raw room code
 								joinCode = raw;
 							}
 						} else if (target === 'answer') {
-							// Could be a URL with ?answer= or raw code
 							if (raw.includes('?answer=')) {
 								try {
 									const url = new URL(raw);
@@ -385,17 +395,21 @@
 								privateAnswerInput = raw;
 							}
 						} else if (target === 'offer') {
-							// Could be a URL with ?offer= or raw code
 							if (raw.includes('?offer=')) {
-								const url = new URL(raw);
-								privateOfferInput = url.searchParams.get('offer') || raw;
+								try {
+									const url = new URL(raw);
+									privateOfferInput = url.searchParams.get('offer') || raw;
+								} catch { privateOfferInput = raw; }
 							} else {
 								privateOfferInput = raw;
 							}
 						}
+						return;
 					}
-				} catch {}
-			}, 300);
+				}
+				scanAnimFrame = requestAnimationFrame(scanFrame);
+			}
+			scanAnimFrame = requestAnimationFrame(scanFrame);
 		} catch (e) {
 			console.error('[SharingPanel] Camera access failed:', e);
 			scanning = false;
@@ -404,7 +418,7 @@
 
 	function stopQRScan() {
 		scanning = false;
-		if (scanInterval) { clearInterval(scanInterval); scanInterval = null; }
+		if (scanAnimFrame !== null) { cancelAnimationFrame(scanAnimFrame); scanAnimFrame = null; }
 		if (scanStream) { scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
 		if (scanVideoEl) { scanVideoEl.srcObject = null; }
 	}
@@ -494,7 +508,7 @@
 				<button class="btn-primary step2-connect" onclick={handlePrivateComplete} disabled={!privateAnswerInput.trim()}>
 					Connect
 				</button>
-				{#if hasBarcodeDetector && !scanning}
+				{#if hasCamera && !scanning}
 					<button class="btn-secondary scan-btn" onclick={() => startQRScan('answer')} aria-label="Scan QR code">
 						<Camera size={18} />
 					</button>
@@ -837,7 +851,7 @@
 				<!-- Expandable join form -->
 				{#if quickAction === 'join'}
 					<div class="expand-section">
-						{#if hasBarcodeDetector && !scanning}
+						{#if hasCamera && !scanning}
 							<button class="btn-scan-qr" onclick={() => startQRScan('room')}>
 								<Camera size={18} />
 								Scan QR code
@@ -968,7 +982,7 @@
 					<!-- Expandable accept form -->
 					{#if privateAction === 'accept'}
 						<div class="expand-section">
-							{#if hasBarcodeDetector && !scanning}
+							{#if hasCamera && !scanning}
 								<button class="btn-scan-qr" onclick={() => startQRScan('offer')}>
 									<Camera size={18} />
 									Scan invite QR
@@ -1158,6 +1172,9 @@
 	{#if copyFeedback && (status === 'disconnected' || status === 'connecting')}
 		<div class="copy-toast floating-toast">{copyFeedback}</div>
 	{/if}
+
+	<!-- Hidden canvas for jsQR processing -->
+	<canvas bind:this={scanCanvasEl} class="scan-canvas"></canvas>
 </div>
 
 <style>
@@ -2034,6 +2051,10 @@
 		max-height: 200px;
 		border-radius: var(--radius-md);
 		object-fit: cover;
+	}
+
+	.scan-canvas {
+		display: none;
 	}
 
 	/* Action buttons (Share + Join side by side) */

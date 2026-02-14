@@ -103,6 +103,8 @@
 		settings.set({ ...DEFAULT_SETTINGS });
 		showClearConfirm = false;
 		handleClose();
+		// Restart onboarding so the user goes through setup again
+		onRestartOnboarding?.();
 	}
 </script>
 

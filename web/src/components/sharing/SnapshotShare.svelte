@@ -10,8 +10,10 @@
 		type SnapshotPreview,
 	} from '../../lib/p2p/snapshot-share';
 	import { QRCodeToDataURL } from '../../lib/p2p/qr';
+	import { archiveSession } from '../../lib/storage';
 	import type { SessionData } from '../../lib/labor-logic/types';
-	import { Copy, Link, Hash, QrCode, Download, Loader2, Camera, Info } from 'lucide-svelte';
+	import { Copy, Link, Hash, QrCode, Download, Loader2, Camera, Info, ClipboardPaste, Archive, Share2, ChevronRight } from 'lucide-svelte';
+	import jsQR from 'jsqr';
 
 	interface Props {
 		/** Called when user imports a snapshot, with the decompressed session data */
@@ -140,6 +142,26 @@
 		}
 	}
 
+	/** Whether the Web Share API is available (typically mobile browsers) */
+	const canNativeShare = $derived(typeof navigator !== 'undefined' && !!navigator.share);
+
+	async function handleNativeShare() {
+		try {
+			const code = await ensureCompressed();
+			const url = generateSnapshotUrl(code);
+			await navigator.share({
+				title: 'Contraction timer data',
+				text: 'View my contraction timer session',
+				url,
+			});
+		} catch (e) {
+			// User cancelled or share failed — ignore
+			if (e instanceof Error && e.name !== 'AbortError') {
+				console.error('[SnapshotShare] Native share failed:', e);
+			}
+		}
+	}
+
 	// --- Receive handlers ---
 
 	async function handleImport() {
@@ -180,8 +202,13 @@
 		}
 	}
 
-	function handleConfirmImport() {
+	function handleConfirmImport(archiveFirst: boolean) {
 		if (!importSession || !onImport) return;
+		if (archiveFirst && hasContractions) {
+			const count = $session.contractions.length;
+			const label = `Before import (${count} contraction${count === 1 ? '' : 's'})`;
+			archiveSession($session, label);
+		}
 		onImport(importSession);
 		// Reset state
 		importInput = '';
@@ -197,15 +224,28 @@
 		importError = '';
 	}
 
-	// --- QR Scanner (receive) ---
+	async function handlePasteFromClipboard() {
+		try {
+			const text = await navigator.clipboard.readText();
+			if (text) {
+				importInput = text.trim();
+				handleImport();
+			}
+		} catch {
+			// Clipboard permission denied — ignore silently
+		}
+	}
+
+	// --- QR Scanner (receive, jsQR-based for cross-browser support) ---
 	let scanning = $state(false);
 	let scanVideoEl: HTMLVideoElement | undefined = $state();
-	let hasBarcodeDetector = $state(typeof globalThis !== 'undefined' && 'BarcodeDetector' in globalThis);
+	let scanCanvasEl: HTMLCanvasElement | undefined = $state();
+	let hasCamera = $state(typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia);
 	let scanStream: MediaStream | null = null;
-	let scanInterval: ReturnType<typeof setInterval> | null = null;
+	let scanAnimFrame: number | null = null;
 
 	async function startQRScan() {
-		if (!hasBarcodeDetector) return;
+		if (!hasCamera) return;
 		try {
 			const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
 			scanStream = stream;
@@ -215,19 +255,35 @@
 				scanVideoEl.srcObject = stream;
 				await scanVideoEl.play();
 			}
-			const detector = new (globalThis as any).BarcodeDetector({ formats: ['qr_code'] });
-			scanInterval = setInterval(async () => {
-				if (!scanVideoEl || scanVideoEl.readyState < 2) return;
-				try {
-					const barcodes = await detector.detect(scanVideoEl);
-					if (barcodes.length > 0) {
-						const raw = barcodes[0].rawValue;
+			// Scan loop using jsQR + canvas
+			const canvas = scanCanvasEl;
+			if (!canvas) return;
+			const ctx = canvas.getContext('2d', { willReadFrequently: true });
+			if (!ctx) return;
+
+			function scanFrame() {
+				if (!scanning || !scanVideoEl || scanVideoEl.readyState < 2) {
+					scanAnimFrame = requestAnimationFrame(scanFrame);
+					return;
+				}
+				const w = scanVideoEl.videoWidth;
+				const h = scanVideoEl.videoHeight;
+				if (w && h && canvas) {
+					canvas.width = w;
+					canvas.height = h;
+					ctx!.drawImage(scanVideoEl!, 0, 0, w, h);
+					const imageData = ctx!.getImageData(0, 0, w, h);
+					const result = jsQR(imageData.data, w, h, { inversionAttempts: 'dontInvert' });
+					if (result?.data) {
 						stopQRScan();
-						importInput = raw;
+						importInput = result.data;
 						handleImport();
+						return;
 					}
-				} catch {}
-			}, 300);
+				}
+				scanAnimFrame = requestAnimationFrame(scanFrame);
+			}
+			scanAnimFrame = requestAnimationFrame(scanFrame);
 		} catch (e) {
 			console.error('[SnapshotShare] Camera access failed:', e);
 			scanning = false;
@@ -236,7 +292,7 @@
 
 	function stopQRScan() {
 		scanning = false;
-		if (scanInterval) { clearInterval(scanInterval); scanInterval = null; }
+		if (scanAnimFrame !== null) { cancelAnimationFrame(scanAnimFrame); scanAnimFrame = null; }
 		if (scanStream) { scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
 		if (scanVideoEl) { scanVideoEl.srcObject = null; }
 	}
@@ -283,76 +339,112 @@
 			{/if}
 			<p class="section-desc">Share a one-time copy of your session. Your partner gets a frozen snapshot — not a live connection.</p>
 
-			<div class="share-grid">
+			<!-- Primary action: native share (mobile) or copy link (desktop) -->
+			{#if canNativeShare}
+				<button class="share-primary-btn" onclick={handleNativeShare}>
+					<Share2 size={20} />
+					<span>Share session data</span>
+				</button>
+			{/if}
+
+			<div class="share-methods-list">
 				<!-- Copy link -->
 				<button
-					class="share-method-btn"
+					class="share-method-row"
 					onclick={handleCopyLink}
 					disabled={shareState === 'compressing' && activeShareMethod === 'link'}
 				>
-					{#if shareState === 'compressing' && activeShareMethod === 'link'}
-						<Loader2 size={20} class="spin-icon" />
-					{:else}
-						<Link size={20} />
-					{/if}
-					<span class="share-method-label">Copy link</span>
+					<span class="share-method-icon">
+						{#if shareState === 'compressing' && activeShareMethod === 'link'}
+							<Loader2 size={18} class="spin-icon" />
+						{:else}
+							<Link size={18} />
+						{/if}
+					</span>
+					<span class="share-method-text">
+						<span class="share-method-label">Copy link</span>
+						<span class="share-method-desc">Shareable URL with your data</span>
+					</span>
+					<ChevronRight size={14} class="share-method-arrow" />
 				</button>
 
-				<!-- Copy data -->
+				<!-- Copy raw data -->
 				<button
-					class="share-method-btn"
+					class="share-method-row"
 					onclick={handleCopyData}
 					disabled={shareState === 'compressing' && activeShareMethod === 'data'}
 				>
-					{#if shareState === 'compressing' && activeShareMethod === 'data'}
-						<Loader2 size={20} class="spin-icon" />
-					{:else}
-						<Copy size={20} />
-					{/if}
-					<span class="share-method-label">Copy data</span>
+					<span class="share-method-icon">
+						{#if shareState === 'compressing' && activeShareMethod === 'data'}
+							<Loader2 size={18} class="spin-icon" />
+						{:else}
+							<Copy size={18} />
+						{/if}
+					</span>
+					<span class="share-method-text">
+						<span class="share-method-label">Copy data</span>
+						<span class="share-method-desc">Compressed data for pasting</span>
+					</span>
+					<ChevronRight size={14} class="share-method-arrow" />
 				</button>
+
+				<!-- QR code -->
+				{#if compressedCode && !qrAvailable}
+					<button class="share-method-row share-method-disabled" disabled title="Session data is too large for a QR code">
+						<span class="share-method-icon"><QrCode size={18} /></span>
+						<span class="share-method-text">
+							<span class="share-method-label">QR code</span>
+							<span class="share-method-desc">Too large for QR</span>
+						</span>
+					</button>
+				{:else}
+					<button
+						class="share-method-row"
+						onclick={handleQrCode}
+						disabled={shareState === 'compressing' && activeShareMethod === 'qr'}
+					>
+						<span class="share-method-icon">
+							{#if shareState === 'compressing' && activeShareMethod === 'qr'}
+								<Loader2 size={18} class="spin-icon" />
+							{:else}
+								<QrCode size={18} />
+							{/if}
+						</span>
+						<span class="share-method-text">
+							<span class="share-method-label">QR code</span>
+							<span class="share-method-desc">Scan with a phone camera</span>
+						</span>
+						<ChevronRight size={14} class="share-method-arrow" />
+					</button>
+				{/if}
 
 				<!-- Short code -->
 				{#if hasRelay}
 					<button
-						class="share-method-btn"
+						class="share-method-row"
 						onclick={handleShortCode}
 						disabled={shareState === 'compressing' && activeShareMethod === 'shortcode'}
 					>
-						{#if shareState === 'compressing' && activeShareMethod === 'shortcode'}
-							<Loader2 size={20} class="spin-icon" />
-						{:else}
-							<Hash size={20} />
-						{/if}
-						<span class="share-method-label">Short code</span>
+						<span class="share-method-icon">
+							{#if shareState === 'compressing' && activeShareMethod === 'shortcode'}
+								<Loader2 size={18} class="spin-icon" />
+							{:else}
+								<Hash size={18} />
+							{/if}
+						</span>
+						<span class="share-method-text">
+							<span class="share-method-label">Short code</span>
+							<span class="share-method-desc">Easy-to-type code (5 min expiry)</span>
+						</span>
+						<ChevronRight size={14} class="share-method-arrow" />
 					</button>
 				{:else}
-					<button class="share-method-btn share-method-disabled" disabled title="Set up a relay in server options to enable short codes">
-						<Hash size={20} />
-						<span class="share-method-label">Short code</span>
-						<span class="share-method-hint">Requires relay</span>
-					</button>
-				{/if}
-
-				<!-- QR code -->
-				{#if compressedCode && !qrAvailable}
-					<button class="share-method-btn share-method-disabled" disabled title="Session data is too large for a QR code">
-						<QrCode size={20} />
-						<span class="share-method-label">QR code</span>
-						<span class="share-method-hint">Too large</span>
-					</button>
-				{:else}
-					<button
-						class="share-method-btn"
-						onclick={handleQrCode}
-						disabled={shareState === 'compressing' && activeShareMethod === 'qr'}
-					>
-						{#if shareState === 'compressing' && activeShareMethod === 'qr'}
-							<Loader2 size={20} class="spin-icon" />
-						{:else}
-							<QrCode size={20} />
-						{/if}
-						<span class="share-method-label">QR code</span>
+					<button class="share-method-row share-method-disabled" disabled title="Set up a relay in server options to enable short codes">
+						<span class="share-method-icon"><Hash size={18} /></span>
+						<span class="share-method-text">
+							<span class="share-method-label">Short code</span>
+							<span class="share-method-desc">Requires relay server</span>
+						</span>
 					</button>
 				{/if}
 			</div>
@@ -417,7 +509,7 @@
 		{/if}
 
 		{#if importState === 'idle' || importState === 'error'}
-			{#if hasBarcodeDetector && !scanning}
+			{#if hasCamera && !scanning}
 				<button class="btn-scan-qr" onclick={startQRScan}>
 					<Camera size={18} />
 					Scan QR code
@@ -427,6 +519,7 @@
 			{#if scanning}
 				<div class="scan-preview">
 					<video bind:this={scanVideoEl} class="scan-video" playsinline muted></video>
+					<canvas bind:this={scanCanvasEl} class="scan-canvas"></canvas>
 					<button class="btn-text" onclick={stopQRScan}>Stop scanning</button>
 				</div>
 			{/if}
@@ -434,7 +527,7 @@
 			<div class="receive-methods">
 				<div class="receive-method">
 					<Camera size={14} />
-					<span>{hasBarcodeDetector ? 'Scan a QR code with your camera' : 'QR scanning available on mobile browsers'}</span>
+					<span>{hasCamera ? 'Scan a QR code with your camera' : 'Camera not available in this browser'}</span>
 				</div>
 				<div class="receive-method">
 					<Link size={14} />
@@ -447,15 +540,18 @@
 			</div>
 
 			<div class="import-form">
-				<label class="import-label">
-					<input
-						type="text"
-						class="import-input"
-						placeholder="Paste a link, short code, or data..."
+				<div class="import-textarea-wrap">
+					<textarea
+						class="import-textarea"
+						placeholder="Paste a link, short code, or compressed data here..."
+						rows={3}
 						bind:value={importInput}
-						onkeydown={(e) => { if (e.key === 'Enter') handleImport(); }}
-					/>
-				</label>
+						onkeydown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleImport(); } }}
+					></textarea>
+					<button class="paste-btn" onclick={handlePasteFromClipboard} aria-label="Paste from clipboard" title="Paste from clipboard">
+						<ClipboardPaste size={16} />
+					</button>
+				</div>
 				<button
 					class="btn-primary import-btn"
 					onclick={handleImport}
@@ -503,15 +599,21 @@
 						</div>
 					{/if}
 				</div>
-				{#if hasContractions}
-					<div class="preview-warning">
-						This will replace your current session ({$session.contractions.length} contractions).
-					</div>
-				{/if}
 				<div class="preview-actions">
-					<button class="btn-primary preview-confirm" onclick={handleConfirmImport}>
-						Import {importPreview.contractionCount} contractions
-					</button>
+					{#if hasContractions}
+						<button class="btn-primary preview-confirm" onclick={() => handleConfirmImport(true)}>
+							<Archive size={16} />
+							Archive current & import
+						</button>
+						<button class="btn-secondary preview-replace" onclick={() => handleConfirmImport(false)}>
+							Replace current session
+						</button>
+						<p class="preview-hint">You have {$session.contractions.length} contraction{$session.contractions.length === 1 ? '' : 's'} in your current session.</p>
+					{:else}
+						<button class="btn-primary preview-confirm" onclick={() => handleConfirmImport(false)}>
+							Import {importPreview.contractionCount} contractions
+						</button>
+					{/if}
 					<button class="btn-text" onclick={handleCancelImport}>
 						Cancel
 					</button>
@@ -635,61 +737,108 @@
 		color: var(--text-faint);
 	}
 
-	/* --- Share grid (2x2) --- */
+	/* --- Share primary button (native share) --- */
 
-	.share-grid {
-		display: grid;
-		grid-template-columns: 1fr 1fr;
-		gap: var(--space-2);
-	}
-
-	.share-method-btn {
+	.share-primary-btn {
 		display: flex;
-		flex-direction: column;
 		align-items: center;
 		justify-content: center;
-		gap: var(--space-1);
+		gap: var(--space-2);
 		padding: var(--space-3);
-		min-height: var(--btn-height-lg);
+		border: none;
+		border-radius: var(--radius-md);
+		background: var(--accent);
+		color: white;
+		font-size: var(--text-base);
+		font-weight: 600;
+		cursor: pointer;
+		-webkit-tap-highlight-color: transparent;
+		min-height: 48px;
+	}
+
+	.share-primary-btn:active {
+		filter: brightness(0.9);
+	}
+
+	/* --- Share methods list --- */
+
+	.share-methods-list {
+		display: flex;
+		flex-direction: column;
 		border: 1px solid var(--border);
 		border-radius: var(--radius-md);
+		overflow: hidden;
+	}
+
+	.share-method-row {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+		padding: var(--space-3);
+		border: none;
+		border-bottom: 1px solid var(--border);
 		background: var(--bg-card);
 		color: var(--text-secondary);
 		cursor: pointer;
 		-webkit-tap-highlight-color: transparent;
-		transition: border-color var(--transition-fast), background var(--transition-fast);
-		position: relative;
+		text-align: left;
+		transition: background 150ms;
 	}
 
-	.share-method-btn:active:not(:disabled) {
-		border-color: var(--accent);
+	.share-method-row:last-child {
+		border-bottom: none;
+	}
+
+	.share-method-row:active:not(:disabled) {
 		background: var(--accent-muted);
 	}
 
-	.share-method-btn:disabled {
+	.share-method-row:disabled {
 		cursor: not-allowed;
 	}
 
-	.share-method-btn.share-method-disabled {
+	.share-method-row.share-method-disabled {
 		opacity: 0.5;
 		color: var(--text-faint);
 	}
 
-	.share-method-btn :global(.spin-icon) {
+	.share-method-icon {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 36px;
+		height: 36px;
+		border-radius: var(--radius-sm);
+		background: var(--bg-primary);
+		flex-shrink: 0;
+	}
+
+	.share-method-icon :global(.spin-icon) {
 		animation: spin 0.8s linear infinite;
+	}
+
+	.share-method-text {
+		display: flex;
+		flex-direction: column;
+		gap: 1px;
+		flex: 1;
+		min-width: 0;
 	}
 
 	.share-method-label {
 		font-size: var(--text-sm);
 		font-weight: 600;
+		color: var(--text-primary);
 	}
 
-	.share-method-hint {
+	.share-method-desc {
 		font-size: var(--text-xs);
 		color: var(--text-faint);
-		font-weight: 400;
-		position: absolute;
-		bottom: var(--space-1);
+	}
+
+	.share-method-row :global(.share-method-arrow) {
+		flex-shrink: 0;
+		color: var(--text-faint);
 	}
 
 	/* --- Short code result card --- */
@@ -853,47 +1002,77 @@
 		object-fit: cover;
 	}
 
+	.scan-canvas {
+		display: none;
+	}
+
 	/* --- Import form --- */
 
 	.import-form {
 		display: flex;
+		flex-direction: column;
 		gap: var(--space-2);
-		align-items: stretch;
 	}
 
-	.import-label {
-		flex: 1;
-		display: flex;
+	.import-textarea-wrap {
+		position: relative;
 	}
 
-	.import-input {
+	.import-textarea {
 		width: 100%;
-		padding: var(--space-2) var(--space-3);
+		padding: var(--space-3);
+		padding-right: calc(var(--space-3) + 36px);
 		border: 1px solid var(--border);
 		border-radius: var(--radius-md);
 		background: var(--bg-card);
 		color: var(--text-primary);
-		font-size: var(--text-base);
+		font-size: var(--text-sm);
+		font-family: monospace;
 		outline: none;
 		box-sizing: border-box;
-		font-family: monospace;
+		resize: vertical;
+		min-height: 80px;
+		line-height: 1.5;
 	}
 
-	.import-input:focus {
+	.import-textarea:focus {
 		border-color: var(--accent);
 	}
 
-	.import-input::placeholder {
+	.import-textarea::placeholder {
 		color: var(--text-faint);
 		font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 		font-size: var(--text-sm);
 	}
 
+	.paste-btn {
+		position: absolute;
+		top: var(--space-2);
+		right: var(--space-2);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 32px;
+		height: 32px;
+		border: 1px solid var(--border);
+		border-radius: var(--radius-sm);
+		background: var(--bg-primary);
+		color: var(--text-muted);
+		cursor: pointer;
+		-webkit-tap-highlight-color: transparent;
+	}
+
+	.paste-btn:active {
+		background: var(--accent-muted);
+		color: var(--accent);
+		border-color: var(--accent);
+	}
+
 	.import-btn {
 		display: flex;
 		align-items: center;
+		justify-content: center;
 		gap: var(--space-2);
-		flex-shrink: 0;
 		white-space: nowrap;
 	}
 
@@ -1005,16 +1184,6 @@
 		text-align: right;
 	}
 
-	.preview-warning {
-		padding: var(--space-2) var(--space-3);
-		background: var(--danger-muted);
-		color: var(--danger);
-		border-radius: var(--radius-sm);
-		font-size: var(--text-xs);
-		font-weight: 500;
-		line-height: 1.4;
-	}
-
 	.preview-actions {
 		display: flex;
 		flex-direction: column;
@@ -1022,7 +1191,24 @@
 	}
 
 	.preview-confirm {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: var(--space-2);
 		padding: var(--space-3);
+	}
+
+	.preview-replace {
+		padding: var(--space-2) var(--space-3);
+		font-size: var(--text-sm);
+	}
+
+	.preview-hint {
+		font-size: var(--text-xs);
+		color: var(--text-faint);
+		text-align: center;
+		margin: 0;
+		line-height: 1.4;
 	}
 
 	/* --- Error --- */

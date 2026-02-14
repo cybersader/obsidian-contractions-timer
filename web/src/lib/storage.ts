@@ -3,6 +3,7 @@ import type { SessionData, ContractionTimerSettings } from './labor-logic/types'
 
 const SESSION_KEY = 'contractions-timer-data';
 const SETTINGS_KEY = 'contractions-timer-settings';
+const ARCHIVES_KEY = 'contractions-timer-archives';
 
 /** Reactive store for storage errors. Components can subscribe to show warnings. */
 export const storageError = writable<string | null>(null);
@@ -48,6 +49,42 @@ export function saveSettings(s: ContractionTimerSettings): void {
 		localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
 	} catch (e) {
 		setStorageError('Could not save settings — storage may be full');
+	}
+}
+
+export interface ArchivedSession {
+	id: string;
+	archivedAt: string;
+	session: SessionData;
+	label?: string;
+}
+
+/** Archive the current session to localStorage. Returns the archive entry. */
+export function archiveSession(session: SessionData, label?: string): ArchivedSession {
+	const entry: ArchivedSession = {
+		id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+		archivedAt: new Date().toISOString(),
+		session,
+		label,
+	};
+	try {
+		const existing = loadArchives();
+		existing.push(entry);
+		localStorage.setItem(ARCHIVES_KEY, JSON.stringify(existing));
+	} catch (e) {
+		setStorageError('Could not archive session — storage may be full');
+	}
+	return entry;
+}
+
+/** Load all archived sessions. */
+export function loadArchives(): ArchivedSession[] {
+	try {
+		const raw = localStorage.getItem(ARCHIVES_KEY);
+		if (!raw) return [];
+		return JSON.parse(raw) as ArchivedSession[];
+	} catch {
+		return [];
 	}
 }
 
