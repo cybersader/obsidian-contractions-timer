@@ -3,7 +3,7 @@
 	import { settings } from '../../lib/stores/settings';
 	import { EMPTY_SESSION, DEFAULT_SETTINGS } from '../../lib/labor-logic/types';
 	import { clearAllData, exportData, importData, archiveSession } from '../../lib/storage';
-	import { THEMES, PALETTES, PALETTE_PREVIEWS, getStoredTheme, setTheme, type ThemePalette, type ThemeMode, type ThemeId } from '../../lib/themes';
+	import { THEMES, PALETTES, PALETTE_PREVIEWS, UNIQUE_MODE_LABELS, getStoredTheme, setTheme, type ThemePalette, type ThemeMode, type ThemeId } from '../../lib/themes';
 	import SettingsPage from '../settings/SettingsPage.svelte';
 	import SessionManager from '../shared/SessionManager.svelte';
 	import { Settings, Palette, Archive, Download, Upload, Info, Trash2, Sun, Moon, Blend, ChevronLeft, X, Clock, FlaskConical, RotateCcw, Share2 } from 'lucide-svelte';
@@ -312,7 +312,7 @@
 									<div class="swatch" style="background: {preview.primary}"></div>
 									<div class="swatch" style="background: {preview.accent}"></div>
 								</div>
-								<span class="palette-name">{palette[0].toUpperCase() + palette.slice(1)}</span>
+								<span class="palette-name">{currentMode === 'mid' ? UNIQUE_MODE_LABELS[palette] : palette[0].toUpperCase() + palette.slice(1)}</span>
 							</button>
 						{/each}
 					</div>
