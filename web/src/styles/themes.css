@@ -827,6 +827,7 @@ html[data-theme="blush-light"] {
 /* --- SOFT MID: "Purple Aurora" ---
    Dreamy shifting purples, ethereal glow */
 html[data-theme="soft-mid"] {
+	--theme-font: 'Poppins', sans-serif;
 	--bg-primary: #a991c8;
 	--bg-secondary: #8a74ac;
 	--bg-elevated: #bba6d6;
@@ -888,6 +889,7 @@ html[data-theme="soft-mid"] {
 /* --- CLINICAL MID: "Polar Ice" ---
    Clean frosted glass lab, sharp reflections, cool precision */
 html[data-theme="clinical-mid"] {
+	--theme-font: 'IBM Plex Mono', monospace;
 	--bg-primary: #8fb0cc;
 	--bg-secondary: #7094b4;
 	--bg-elevated: #a0bfd8;
@@ -949,6 +951,7 @@ html[data-theme="clinical-mid"] {
 /* --- WARM MID: "Golden Hour" ---
    Radiant sunburst warmth, amber glow, honey light */
 html[data-theme="warm-mid"] {
+	--theme-font: 'Sora', sans-serif;
 	--bg-primary: #ccaa78;
 	--bg-secondary: #b08e5e;
 	--bg-elevated: #d8bc90;
@@ -1010,6 +1013,7 @@ html[data-theme="warm-mid"] {
 /* --- OCEAN MID: "Deep Lagoon" ---
    Underwater caustics, rippling teal luminescence */
 html[data-theme="ocean-mid"] {
+	--theme-font: 'Quicksand', sans-serif;
 	--bg-primary: #7bbcb5;
 	--bg-secondary: #5e9e96;
 	--bg-elevated: #90ccc4;
@@ -1072,6 +1076,7 @@ html[data-theme="ocean-mid"] {
 /* --- FOREST MID: "Dappled Sunlight" ---
    Green-gold light patches, organic shapes, mossy warmth */
 html[data-theme="forest-mid"] {
+	--theme-font: 'Playfair Display', serif;
 	--bg-primary: #82b87a;
 	--bg-secondary: #649a5c;
 	--bg-elevated: #96c890;
@@ -1134,6 +1139,7 @@ html[data-theme="forest-mid"] {
 /* --- SUNSET MID: "Dusk Sky" ---
    Horizontal gradient bands, warm-to-cool transition, ember glow */
 html[data-theme="sunset-mid"] {
+	--theme-font: 'Space Mono', monospace;
 	--bg-primary: #cc9470;
 	--bg-secondary: #b07854;
 	--bg-elevated: #d8a888;
@@ -1195,6 +1201,7 @@ html[data-theme="sunset-mid"] {
 /* --- LAVENDER MID: "Amethyst Cave" ---
    Crystal purple refraction, faceted highlights, prism glow */
 html[data-theme="lavender-mid"] {
+	--theme-font: 'DM Sans', sans-serif;
 	--bg-primary: #b08cd4;
 	--bg-secondary: #9070b8;
 	--bg-elevated: #c0a0e0;
@@ -1256,6 +1263,7 @@ html[data-theme="lavender-mid"] {
 /* --- MIDNIGHT MID: "Nebula" ---
    Deep space gradients, indigo-cyan depth, stellar glow */
 html[data-theme="midnight-mid"] {
+	--theme-font: 'Space Grotesk', sans-serif;
 	--bg-primary: #8898c4;
 	--bg-secondary: #6a7ca8;
 	--bg-elevated: #9cacd4;
@@ -1318,6 +1326,7 @@ html[data-theme="midnight-mid"] {
 /* --- SKY MID: "Cloudscape" ---
    Soft white wisps, airy glass, open sky depth */
 html[data-theme="sky-mid"] {
+	--theme-font: 'Nunito', sans-serif;
 	--bg-primary: #78b4d4;
 	--bg-secondary: #5c98b8;
 	--bg-elevated: #90c4e0;
@@ -1380,6 +1389,7 @@ html[data-theme="sky-mid"] {
 /* --- BLUSH MID: "Rose Garden" ---
    Soft pink watercolor bleeds, gentle mauve warmth */
 html[data-theme="blush-mid"] {
+	--theme-font: 'Fredoka', sans-serif;
 	--bg-primary: #cc88a8;
 	--bg-secondary: #b06c90;
 	--bg-elevated: #d8a0bc;
@@ -1503,6 +1513,65 @@ html[data-theme="blush-mid"] {
 	50% { transform: translate(-8px, 10px); }
 	75% { transform: translate(12px, 5px); }
 }
+@keyframes cursor-blink {
+	0%, 49% { opacity: 1; }
+	50%, 100% { opacity: 0; }
+}
+
+@keyframes light-rays {
+	0% { transform: rotate(0deg); }
+	100% { transform: rotate(8deg); }
+}
+
+@keyframes wave-motion {
+	0%, 100% { transform: translateX(0) translateY(0); }
+	50% { transform: translateX(-15px) translateY(3px); }
+}
+
+@keyframes leaf-float {
+	0%, 100% { transform: translate(0, 0) rotate(0deg); }
+	25% { transform: translate(8px, -12px) rotate(5deg); }
+	75% { transform: translate(-6px, 8px) rotate(-3deg); }
+}
+
+@keyframes sun-descent {
+	0%, 100% { top: 8%; opacity: 0.5; }
+	50% { top: 25%; opacity: 0.35; }
+}
+
+@keyframes prism-rotate {
+	0% { transform: rotate(-15deg); }
+	100% { transform: rotate(-8deg); }
+}
+
+@keyframes twinkle {
+	0%, 100% { opacity: 0.2; }
+	50% { opacity: 0.8; }
+}
+
+@keyframes neon-flicker {
+	0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% { opacity: 1; }
+	20%, 24%, 55% { opacity: 0.5; }
+}
+
+@keyframes sun-rays {
+	from { transform: rotate(0deg); }
+	to { transform: rotate(360deg); }
+}
+
+@keyframes bubble-bob {
+	0%, 100% { transform: translate(0, 0); }
+	33% { transform: translate(4px, -8px); }
+	66% { transform: translate(-3px, 5px); }
+}
+
+@keyframes cushion-squish {
+	0% { transform: scale(1); }
+	40% { transform: scale(0.98, 0.96); }
+	70% { transform: scale(1.01, 1.02); }
+	100% { transform: scale(1); }
+}
+
 
 /* ============================================
    1. SOFT — "Aurora Glassmorphism"
@@ -1604,6 +1673,35 @@ html[data-theme="soft-mid"] .nav-tab.active::after {
 	background: var(--accent);
 	border-radius: 50%;
 	box-shadow: 0 0 8px var(--accent);
+}
+
+html[data-theme="soft-mid"] body::after {
+	content: '';
+	position: fixed;
+	inset: 0;
+	background:
+		radial-gradient(circle 150px at 70% 20%, rgba(236, 72, 153, 0.15), transparent),
+		radial-gradient(circle 130px at 25% 70%, rgba(99, 102, 241, 0.12), transparent),
+		radial-gradient(circle 100px at 80% 80%, rgba(168, 85, 247, 0.10), transparent);
+	pointer-events: none;
+	z-index: 0;
+	animation: orb-float 35s ease-in-out infinite reverse;
+}
+
+html[data-theme="soft-mid"] .page-title,
+html[data-theme="soft-mid"] .section-title {
+	text-shadow: 0 0 20px rgba(168, 85, 247, 0.15);
+}
+
+html[data-theme="soft-mid"] .btn-primary:active {
+	box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.20), 0 4px 18px rgba(139, 92, 246, 0.25);
+}
+
+html[data-theme="soft-mid"] .card:hover {
+	transform: scale(1.01);
+	backdrop-filter: blur(20px) saturate(1.4);
+	-webkit-backdrop-filter: blur(20px) saturate(1.4);
+	transition: transform 200ms ease, backdrop-filter 200ms;
 }
 
 /* ============================================
@@ -1708,6 +1806,43 @@ html[data-theme="clinical-mid"] .section-title::before {
 	height: 14px;
 	background: var(--accent);
 	border-radius: 1px;
+}
+
+html[data-theme="clinical-mid"] body::after {
+	content: '';
+	position: fixed;
+	inset: 0;
+	background: repeating-linear-gradient(
+		0deg,
+		transparent 0, transparent 3px,
+		rgba(59, 130, 246, 0.03) 3px, rgba(59, 130, 246, 0.03) 4px
+	);
+	pointer-events: none;
+	z-index: 0;
+}
+
+html[data-theme="clinical-mid"] .page-title::before {
+	content: '> ';
+	color: var(--accent);
+	animation: cursor-blink 1.2s step-end infinite;
+}
+
+html[data-theme="clinical-mid"] .card:active {
+	box-shadow: inset 3px 3px 6px rgba(0, 0, 0, 0.12), inset -2px -2px 4px rgba(255, 255, 255, 0.50);
+	transition: box-shadow 100ms;
+}
+
+html[data-theme="clinical-mid"] .section-title::before {
+	content: '>> ';
+	position: static;
+	transform: none;
+	width: auto;
+	height: auto;
+	background: none;
+	border-radius: 0;
+	color: var(--accent);
+	font-family: 'IBM Plex Mono', monospace;
+	font-size: 0.85em;
 }
 
 /* ============================================
@@ -1903,6 +2038,31 @@ html[data-theme="ocean-mid"] .nav-tab.active::after {
 	border-radius: 20px;
 }
 
+html[data-theme="ocean-mid"] body::after {
+	content: '';
+	position: fixed;
+	bottom: 0; left: -10%; right: -10%;
+	height: 25%;
+	background:
+		radial-gradient(ellipse 300% 40px at 20% 0%, rgba(45, 212, 191, 0.10), transparent),
+		radial-gradient(ellipse 250% 50px at 60% 40%, rgba(20, 184, 166, 0.08), transparent),
+		radial-gradient(ellipse 200% 30px at 80% 70%, rgba(45, 212, 191, 0.06), transparent);
+	pointer-events: none;
+	z-index: 0;
+	animation: wave-motion 12s ease-in-out infinite;
+}
+
+html[data-theme="ocean-mid"] .card:hover {
+	border-color: rgba(45, 212, 191, 0.30);
+	box-shadow: 0 4px 18px rgba(13, 148, 136, 0.22), 0 0 30px rgba(45, 212, 191, 0.06);
+	transition: all 300ms ease;
+}
+
+html[data-theme="ocean-mid"] .btn-primary:active {
+	box-shadow: 0 0 0 4px rgba(45, 212, 191, 0.15), 0 4px 14px rgba(13, 148, 136, 0.22);
+	transition: box-shadow 150ms;
+}
+
 /* ============================================
    5. FOREST — "Woodland Dappled"
    Organic shapes, dappled light patches, earthy feel
@@ -2001,6 +2161,34 @@ html[data-theme="forest-mid"] .section-title::before {
 	height: 6px;
 	background: rgba(22, 163, 74, 0.35);
 	border-radius: 50% 0;
+}
+
+html[data-theme="forest-mid"] body::after {
+	content: '';
+	position: fixed;
+	inset: 0;
+	background:
+		radial-gradient(ellipse 8px 12px at 12% 18%, rgba(134, 239, 172, 0.18), transparent 70%),
+		radial-gradient(ellipse 10px 8px at 85% 35%, rgba(74, 222, 128, 0.14), transparent 70%),
+		radial-gradient(ellipse 6px 10px at 55% 88%, rgba(134, 239, 172, 0.16), transparent 70%);
+	pointer-events: none;
+	z-index: 0;
+	animation: leaf-float 20s ease-in-out infinite;
+}
+
+html[data-theme="forest-mid"] .page-title::after {
+	content: '';
+	display: block;
+	width: 60px;
+	height: 3px;
+	margin-top: 6px;
+	background: linear-gradient(90deg, rgba(22, 163, 74, 0.5), rgba(74, 222, 128, 0.4), rgba(134, 239, 172, 0.2), transparent);
+	border-radius: 2px;
+}
+
+html[data-theme="forest-mid"] .card:hover {
+	box-shadow: 0 3px 14px rgba(22, 163, 74, 0.20), 0 6px 20px rgba(74, 222, 128, 0.08), inset 0 0 15px rgba(134, 239, 172, 0.04);
+	transition: box-shadow 250ms ease;
 }
 
 /* ============================================
@@ -2105,6 +2293,40 @@ html[data-theme="sunset-mid"] .nav-tab.active::after {
 	height: 3px;
 	background: linear-gradient(90deg, #fb923c, #ec4899);
 	border-radius: 2px;
+}
+
+html[data-theme="sunset-mid"] body::after {
+	content: '';
+	position: fixed;
+	top: 8%;
+	left: 50%;
+	transform: translateX(-50%);
+	width: 120px;
+	height: 120px;
+	border-radius: 50%;
+	background: radial-gradient(circle, rgba(251, 191, 36, 0.20) 0%, rgba(251, 146, 60, 0.12) 40%, transparent 70%);
+	box-shadow: 0 0 60px 20px rgba(251, 191, 36, 0.08);
+	pointer-events: none;
+	z-index: 0;
+	animation: sun-descent 60s ease-in-out infinite;
+}
+
+html[data-theme="sunset-mid"] .card {
+	border-left: 3px solid;
+	border-image: linear-gradient(180deg, rgba(251, 146, 60, 0.4), rgba(236, 72, 153, 0.3), rgba(147, 51, 234, 0.2)) 1;
+}
+
+html[data-theme="sunset-mid"] .btn-primary:hover {
+	box-shadow: 0 6px 24px rgba(234, 88, 12, 0.30), 0 0 0 1px rgba(251, 146, 60, 0.20);
+	transition: box-shadow 200ms ease;
+}
+
+html[data-theme="sunset-mid"] body::before {
+	background: repeating-linear-gradient(
+		180deg,
+		transparent 0, transparent 60px,
+		rgba(251, 146, 60, 0.06) 60px, rgba(251, 146, 60, 0.06) 62px
+	);
 }
 
 /* ============================================
@@ -2224,6 +2446,37 @@ html[data-theme="lavender-mid"] .section-title::before {
 	height: 7px;
 	border: 1.5px solid rgba(147, 51, 234, 0.45);
 	background: transparent;
+}
+
+html[data-theme="lavender-mid"] body::after {
+	content: '';
+	position: fixed;
+	top: 0; left: 0;
+	width: 100%; height: 100%;
+	background:
+		linear-gradient(135deg, rgba(192, 132, 252, 0.04) 0%, transparent 30%),
+		linear-gradient(225deg, rgba(129, 140, 248, 0.04) 0%, transparent 30%),
+		linear-gradient(315deg, rgba(236, 72, 153, 0.03) 0%, transparent 30%);
+	pointer-events: none;
+	z-index: 0;
+	animation: prism-rotate 40s ease-in-out infinite alternate;
+	transform-origin: center;
+}
+
+html[data-theme="lavender-mid"] .page-title {
+	background: linear-gradient(135deg, var(--text-primary), var(--accent), rgba(192, 132, 252, 0.8));
+	-webkit-background-clip: text;
+	-webkit-text-fill-color: transparent;
+	background-clip: text;
+}
+
+html[data-theme="lavender-mid"] .card::before {
+	background: linear-gradient(90deg, transparent, rgba(192, 132, 252, 0.5), rgba(129, 140, 248, 0.4), rgba(236, 72, 153, 0.3), rgba(251, 191, 36, 0.2), transparent);
+}
+
+html[data-theme="lavender-mid"] .btn-primary:hover {
+	box-shadow: 0 3px 10px rgba(147, 51, 234, 0.22), 0 0 0 1px rgba(192, 132, 252, 0.30);
+	transition: box-shadow 200ms ease;
 }
 
 /* ============================================
@@ -2353,6 +2606,37 @@ html[data-theme="midnight-mid"] .nav-tab.active::after {
 	border-radius: 1px;
 }
 
+html[data-theme="midnight-mid"] body::after {
+	content: '';
+	position: fixed;
+	inset: 0;
+	background:
+		radial-gradient(circle 1px at 10% 15%, rgba(96, 165, 250, 0.6), transparent 2px),
+		radial-gradient(circle 1px at 25% 45%, rgba(147, 197, 253, 0.5), transparent 2px),
+		radial-gradient(circle 1px at 40% 8%, rgba(96, 165, 250, 0.4), transparent 2px),
+		radial-gradient(circle 1px at 55% 72%, rgba(147, 197, 253, 0.6), transparent 2px),
+		radial-gradient(circle 1px at 70% 30%, rgba(96, 165, 250, 0.5), transparent 2px),
+		radial-gradient(circle 1px at 85% 60%, rgba(147, 197, 253, 0.4), transparent 2px),
+		radial-gradient(circle 1px at 15% 85%, rgba(96, 165, 250, 0.5), transparent 2px),
+		radial-gradient(circle 1px at 90% 12%, rgba(147, 197, 253, 0.3), transparent 2px),
+		radial-gradient(circle 1px at 35% 92%, rgba(96, 165, 250, 0.4), transparent 2px),
+		radial-gradient(circle 1px at 65% 50%, rgba(147, 197, 253, 0.5), transparent 2px),
+		radial-gradient(circle 1px at 50% 25%, rgba(96, 165, 250, 0.3), transparent 2px),
+		radial-gradient(circle 1px at 78% 78%, rgba(147, 197, 253, 0.4), transparent 2px);
+	pointer-events: none;
+	z-index: 0;
+	animation: twinkle 4s ease-in-out infinite;
+}
+
+html[data-theme="midnight-mid"] .btn-primary:hover {
+	animation: neon-flicker 0.4s ease-in-out;
+	box-shadow: 0 0 20px rgba(59, 130, 246, 0.40), 0 0 40px rgba(59, 130, 246, 0.15);
+}
+
+html[data-theme="midnight-mid"] .page-title {
+	text-shadow: 0 0 14px rgba(59, 130, 246, 0.40), 0 0 28px rgba(59, 130, 246, 0.15);
+}
+
 /* ============================================
    9. SKY — "Cloud Layer"
    Ultra-airy, transparent, floating, minimal
@@ -2451,6 +2735,35 @@ html[data-theme="sky-mid"] .nav-tab.active::after {
 	background: var(--accent);
 	border-radius: 20px;
 	opacity: 0.5;
+}
+
+html[data-theme="sky-mid"] body::after {
+	content: '';
+	position: fixed;
+	top: 5%;
+	left: 50%;
+	transform: translateX(-50%);
+	width: 200px;
+	height: 200px;
+	border-radius: 50%;
+	background: radial-gradient(circle, rgba(255, 255, 255, 0.10) 0%, rgba(56, 189, 248, 0.05) 40%, transparent 70%);
+	pointer-events: none;
+	z-index: 0;
+	animation: sun-rays 60s linear infinite;
+	background-size: 100% 100%;
+	background-image:
+		radial-gradient(circle, rgba(255, 255, 255, 0.10) 0%, transparent 60%),
+		repeating-conic-gradient(from 0deg, rgba(255, 255, 255, 0.03) 0deg 5deg, transparent 5deg 30deg);
+}
+
+html[data-theme="sky-mid"] .card:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 6px 20px rgba(2, 132, 199, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.55);
+	transition: transform 200ms ease, box-shadow 200ms ease;
+}
+
+html[data-theme="sky-mid"] .btn-primary {
+	box-shadow: 0 6px 24px rgba(2, 132, 199, 0.12), 0 12px 40px rgba(56, 189, 248, 0.06);
 }
 
 /* ============================================
@@ -2554,6 +2867,36 @@ html[data-theme="blush-mid"] .nav-tab.active::after {
 	box-shadow: 0 0 6px rgba(219, 39, 119, 0.25);
 }
 
+html[data-theme="blush-mid"] body::after {
+	content: '';
+	position: fixed;
+	inset: 0;
+	background:
+		radial-gradient(circle 30px at 15% 20%, rgba(244, 114, 182, 0.10), transparent),
+		radial-gradient(circle 20px at 80% 15%, rgba(219, 39, 119, 0.08), transparent),
+		radial-gradient(circle 25px at 60% 80%, rgba(244, 114, 182, 0.09), transparent),
+		radial-gradient(circle 15px at 30% 65%, rgba(251, 113, 133, 0.07), transparent),
+		radial-gradient(circle 18px at 90% 50%, rgba(244, 114, 182, 0.06), transparent);
+	pointer-events: none;
+	z-index: 0;
+	animation: bubble-bob 15s ease-in-out infinite;
+}
+
+html[data-theme="blush-mid"] .card:active {
+	animation: cushion-squish 300ms ease;
+}
+
+html[data-theme="blush-mid"] .btn-primary:hover {
+	transform: rotate(-1deg) scale(1.02);
+	box-shadow: 6px 6px 14px rgba(176, 108, 144, 0.22), -3px -3px 8px rgba(255, 255, 255, 0.55);
+	transition: transform 200ms ease, box-shadow 200ms ease;
+}
+
+html[data-theme="blush-mid"] .btn-primary:active {
+	transform: rotate(0deg) scale(0.98);
+	transition: transform 100ms ease;
+}
+
 /* ============================================
    MID-TONE SHARED — Fallbacks & Accessibility
    ============================================ */
@@ -2585,6 +2928,19 @@ html[data-theme="blush-mid"] .nav-tab.active::after {
 	}
 	html[data-theme$="-mid"] .card::before,
 	html[data-theme$="-mid"] .card::after {
+		animation: none !important;
+	}
+	html[data-theme$="-mid"] .card:hover,
+	html[data-theme$="-mid"] .card:active {
+		transform: none !important;
+		animation: none !important;
+	}
+	html[data-theme$="-mid"] .btn-primary:hover,
+	html[data-theme$="-mid"] .btn-primary:active {
+		transform: none !important;
+		animation: none !important;
+	}
+	html[data-theme$="-mid"] .page-title::before {
 		animation: none !important;
 	}
 }

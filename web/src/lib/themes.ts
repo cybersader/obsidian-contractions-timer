@@ -1,3 +1,5 @@
+import { loadFont } from './font-loader';
+
 export type ThemePalette = 'clinical' | 'soft' | 'warm' | 'ocean' | 'forest' | 'sunset' | 'lavender' | 'midnight' | 'sky' | 'blush';
 export type ThemeMode = 'light' | 'mid' | 'dark';
 export type ThemeId = `${ThemePalette}-${ThemeMode}`;
@@ -47,6 +49,20 @@ export const THEMES: ThemeInfo[] = [
 /** All palette names in display order */
 export const PALETTES: ThemePalette[] = ['soft', 'clinical', 'warm', 'ocean', 'forest', 'sunset', 'lavender', 'midnight', 'sky', 'blush'];
 
+/** Font assigned to each palette's "unique" (mid) mode */
+export const PALETTE_FONTS: Record<ThemePalette, string> = {
+	soft: 'Poppins',
+	clinical: 'IBM Plex Mono',
+	warm: 'Sora',
+	ocean: 'Quicksand',
+	forest: 'Playfair Display',
+	sunset: 'Space Mono',
+	lavender: 'DM Sans',
+	midnight: 'Space Grotesk',
+	sky: 'Nunito',
+	blush: 'Fredoka',
+};
+
 const THEME_STORAGE_KEY = 'ct-theme';
 
 export function getStoredTheme(): ThemeId {
@@ -66,6 +82,15 @@ export function setTheme(id: ThemeId): void {
 
 	document.documentElement.setAttribute('data-theme', id);
 	localStorage.setItem(THEME_STORAGE_KEY, id);
+
+	// Font loading for unique (mid) themes
+	if (theme.mode === 'mid') {
+		const font = PALETTE_FONTS[theme.palette];
+		loadFont(font);
+		document.documentElement.style.setProperty('--theme-font', `'${font}'`);
+	} else {
+		document.documentElement.style.removeProperty('--theme-font');
+	}
 
 	// Update meta theme-color
 	const meta = document.querySelector('meta[name="theme-color"]');

@@ -281,19 +281,19 @@
 						</button>
 						<button
 							class="mode-btn"
-							class:mode-active={currentMode === 'mid'}
-							onclick={() => applyTheme(`${currentPalette}-mid`)}
-						>
-							<Blend size={16} />
-							Pastel
-						</button>
-						<button
-							class="mode-btn"
 							class:mode-active={currentMode === 'dark'}
 							onclick={() => applyTheme(`${currentPalette}-dark`)}
 						>
 							<Moon size={16} />
 							Dark
+						</button>
+						<button
+							class="mode-btn"
+							class:mode-active={currentMode === 'mid'}
+							onclick={() => applyTheme(`${currentPalette}-mid`)}
+						>
+							<Blend size={16} />
+							Unique
 						</button>
 					</div>
 
