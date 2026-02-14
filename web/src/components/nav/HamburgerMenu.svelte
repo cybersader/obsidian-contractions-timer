@@ -11,6 +11,7 @@
 	import { debugEnabled, dlogCount, dlogDump, dlogClear } from '../../lib/debug-log';
 	import { isP2PActive, peerCount } from '../../lib/stores/p2p';
 	import SharingPanel from '../sharing/SharingPanel.svelte';
+	import DevotionalCard from '../timer/DevotionalCard.svelte';
 
 	interface Props {
 		open: boolean;
@@ -33,7 +34,10 @@
 	}
 	let { open, onClose, onRestartOnboarding, settingsSection = null, sharingRequested = false, initialOfferCode = null, initialAnswerCode = null, initialRoomCode = null, initialPassword = null, answerRelayMode = false, initialSnapshotCode = null } = $props<Props>();
 
-	let activeTab: 'menu' | 'settings' | 'about' | 'theme' | 'sessions' | 'devtools' | 'sharing' = $state('menu');
+	let activeTab: 'menu' | 'settings' | 'about' | 'theme' | 'sessions' | 'devtools' | 'sharing' | 'devotional' = $state('menu');
+
+	// Easter egg: show "Prayers & Saints" only for Cathedral (warm-mid) and Shire (forest-mid)
+	let showDevotional = $derived(currentTheme === 'warm-mid' || currentTheme === 'forest-mid');
 
 	// Auto-switch to settings tab when a settings section is requested
 	$effect(() => {
@@ -171,6 +175,11 @@
 					<ChevronLeft size={20} />
 				</button>
 				<span class="drawer-title">Dev tools</span>
+			{:else if activeTab === 'devotional'}
+				<button class="drawer-back" onclick={() => activeTab = 'menu'} aria-label="Back to menu">
+					<ChevronLeft size={20} />
+				</button>
+				<span class="drawer-title">Prayers & saints</span>
 			{:else}
 				<button class="drawer-back" onclick={() => activeTab = 'menu'} aria-label="Back to menu">
 					<ChevronLeft size={20} />
@@ -234,6 +243,12 @@
 						<Info size={20} />
 						<span>About</span>
 					</button>
+					{#if showDevotional}
+						<button class="menu-item menu-item--devotional" onclick={() => activeTab = 'devotional'}>
+							<span class="devotional-menu-icon">&#128591;</span>
+							<span>Prayers & saints</span>
+						</button>
+					{/if}
 					<button class="menu-item" onclick={() => activeTab = 'devtools'}>
 						<FlaskConical size={20} />
 						<span>Dev tools</span>
@@ -411,6 +426,9 @@
 					</div>
 				</div>
 
+			{:else if activeTab === 'devotional'}
+				<DevotionalCard />
+
 			{:else}
 				<!-- About page -->
 				<div class="about-page">
@@ -554,6 +572,16 @@
 		font-size: var(--text-xs);
 		color: var(--text-faint);
 		font-weight: 400;
+	}
+
+	.menu-item--devotional {
+		color: var(--accent);
+	}
+
+	.devotional-menu-icon {
+		font-size: 20px;
+		line-height: 1;
+		flex-shrink: 0;
 	}
 
 	.menu-item--danger {
