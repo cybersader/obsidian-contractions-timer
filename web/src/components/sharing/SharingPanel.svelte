@@ -338,8 +338,69 @@
 	/** Max canvas dimension for jsQR — keeps processing fast and avoids Safari blank-frame issues */
 	const SCAN_MAX_DIM = 640;
 
+	/** Native BarcodeDetector (Safari iOS 17.2+, Chrome 83+) — bypasses canvas issues on mobile */
+	let nativeBarcodeDetector: { detect(source: any): Promise<Array<{ rawValue: string }>> } | null = null;
+	let barcodeDetectorChecked = false;
+
+	async function initBarcodeDetector() {
+		if (barcodeDetectorChecked) return;
+		barcodeDetectorChecked = true;
+		try {
+			const BD = (globalThis as any).BarcodeDetector;
+			if (BD) {
+				const formats: string[] = await BD.getSupportedFormats();
+				if (formats.includes('qr_code')) {
+					nativeBarcodeDetector = new BD({ formats: ['qr_code'] });
+				}
+			}
+		} catch {
+			nativeBarcodeDetector = null;
+		}
+	}
+
+	/** Route a scanned QR value to the right field based on scan target */
+	function handleScanResult(raw: string, target: 'answer' | 'offer' | 'room') {
+		stopQRScan();
+		if (target === 'room') {
+			try {
+				const url = new URL(raw);
+				const room = url.searchParams.get('room');
+				if (room) {
+					joinCode = room;
+					const hash = url.hash.slice(1);
+					const hashParams = new URLSearchParams(hash);
+					const key = hashParams.get('key');
+					if (key) password = key;
+				} else {
+					joinCode = raw;
+				}
+			} catch {
+				joinCode = raw;
+			}
+		} else if (target === 'answer') {
+			if (raw.includes('?answer=')) {
+				try {
+					const url = new URL(raw);
+					privateAnswerInput = url.searchParams.get('answer') || raw;
+				} catch { privateAnswerInput = raw; }
+			} else {
+				privateAnswerInput = raw;
+			}
+		} else if (target === 'offer') {
+			if (raw.includes('?offer=')) {
+				try {
+					const url = new URL(raw);
+					privateOfferInput = url.searchParams.get('offer') || raw;
+				} catch { privateOfferInput = raw; }
+			} else {
+				privateOfferInput = raw;
+			}
+		}
+	}
+
 	async function startQRScan(target: 'answer' | 'offer' | 'room') {
 		scanError = '';
+		await initBarcodeDetector();
 		try {
 			if (!navigator.mediaDevices?.getUserMedia) {
 				throw new Error(
@@ -385,81 +446,66 @@
 			const ctx = canvas.getContext('2d', { willReadFrequently: true });
 			if (!ctx) throw new Error('Cannot get canvas context');
 
-			function scanFrame() {
+			async function scanFrame() {
 				if (!scanning || !scanVideoEl) return;
 
-				const vw = scanVideoEl.videoWidth;
-				const vh = scanVideoEl.videoHeight;
-
-				if (vw && vh) {
-					// Downscale for faster jsQR processing (especially helps on Safari iOS)
-					const scale = Math.min(1, SCAN_MAX_DIM / Math.max(vw, vh));
-					const sw = Math.round(vw * scale);
-					const sh = Math.round(vh * scale);
-					canvas!.width = sw;
-					canvas!.height = sh;
-					ctx!.drawImage(scanVideoEl!, 0, 0, sw, sh);
-
-					const imageData = ctx!.getImageData(0, 0, sw, sh);
-
-					// Skip blank frames (Safari sometimes returns all-zero data initially)
-					let hasData = false;
-					for (let i = 0; i < Math.min(imageData.data.length, 1000); i += 4) {
-						if (imageData.data[i] || imageData.data[i+1] || imageData.data[i+2]) {
-							hasData = true;
-							break;
-						}
-					}
-
-					if (hasData) {
-						const result = jsQR(imageData.data, sw, sh, { inversionAttempts: 'attemptBoth' });
-						if (result?.data) {
-							const raw = result.data;
-							stopQRScan();
-							if (target === 'room') {
-								try {
-									const url = new URL(raw);
-									const room = url.searchParams.get('room');
-									if (room) {
-										joinCode = room;
-										const hash = url.hash.slice(1);
-										const hashParams = new URLSearchParams(hash);
-										const key = hashParams.get('key');
-										if (key) password = key;
-									} else {
-										joinCode = raw;
-									}
-								} catch {
-									joinCode = raw;
-								}
-							} else if (target === 'answer') {
-								if (raw.includes('?answer=')) {
-									try {
-										const url = new URL(raw);
-										privateAnswerInput = url.searchParams.get('answer') || raw;
-									} catch { privateAnswerInput = raw; }
-								} else {
-									privateAnswerInput = raw;
-								}
-							} else if (target === 'offer') {
-								if (raw.includes('?offer=')) {
-									try {
-										const url = new URL(raw);
-										privateOfferInput = url.searchParams.get('offer') || raw;
-									} catch { privateOfferInput = raw; }
-								} else {
-									privateOfferInput = raw;
-								}
-							}
+				try {
+					// Prefer native BarcodeDetector (Safari iOS 17.2+, Chrome 83+)
+					// Uses the same engine as the Camera app — no canvas needed
+					if (nativeBarcodeDetector) {
+						const barcodes = await nativeBarcodeDetector.detect(scanVideoEl);
+						if (barcodes.length > 0 && barcodes[0].rawValue) {
+							handleScanResult(barcodes[0].rawValue, target);
 							return;
 						}
+					} else {
+						// Fallback: jsQR via canvas (Firefox, older Safari)
+						const vw = scanVideoEl.videoWidth;
+						const vh = scanVideoEl.videoHeight;
+
+						if (vw && vh) {
+							const scale = Math.min(1, SCAN_MAX_DIM / Math.max(vw, vh));
+							const sw = Math.round(vw * scale);
+							const sh = Math.round(vh * scale);
+							canvas!.width = sw;
+							canvas!.height = sh;
+
+							// Use createImageBitmap for better Safari compat
+							try {
+								const bitmap = await createImageBitmap(scanVideoEl!);
+								ctx!.drawImage(bitmap, 0, 0, sw, sh);
+								bitmap.close();
+							} catch {
+								ctx!.drawImage(scanVideoEl!, 0, 0, sw, sh);
+							}
+
+							const imageData = ctx!.getImageData(0, 0, sw, sh);
+
+							// Skip blank frames
+							let hasData = false;
+							for (let i = 0; i < Math.min(imageData.data.length, 1000); i += 4) {
+								if (imageData.data[i] || imageData.data[i+1] || imageData.data[i+2]) {
+									hasData = true;
+									break;
+								}
+							}
+
+							if (hasData) {
+								const result = jsQR(imageData.data, sw, sh, { inversionAttempts: 'attemptBoth' });
+								if (result?.data) {
+									handleScanResult(result.data, target);
+									return;
+								}
+							}
+						}
 					}
+				} catch {
+					// Frame processing error — continue scanning
 				}
 
-				// Use setTimeout instead of rAF — Safari throttles rAF in some contexts
-				scanTimer = setTimeout(scanFrame, 150);
+				scanTimer = setTimeout(scanFrame, 200);
 			}
-			// Small initial delay to let Safari's video pipeline warm up
+			// Initial delay to let video pipeline warm up
 			scanTimer = setTimeout(scanFrame, 500);
 		} catch (e) {
 			const msg = e instanceof Error ? e.message : String(e);

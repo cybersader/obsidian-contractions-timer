@@ -258,8 +258,29 @@
 	/** Max canvas dimension for jsQR — keeps processing fast and avoids Safari blank-frame issues */
 	const SCAN_MAX_DIM = 640;
 
+	/** Native BarcodeDetector (Safari iOS 17.2+, Chrome 83+) — bypasses canvas issues on mobile */
+	let nativeBarcodeDetector: { detect(source: any): Promise<Array<{ rawValue: string }>> } | null = null;
+	let barcodeDetectorChecked = false;
+
+	async function initBarcodeDetector() {
+		if (barcodeDetectorChecked) return;
+		barcodeDetectorChecked = true;
+		try {
+			const BD = (globalThis as any).BarcodeDetector;
+			if (BD) {
+				const formats: string[] = await BD.getSupportedFormats();
+				if (formats.includes('qr_code')) {
+					nativeBarcodeDetector = new BD({ formats: ['qr_code'] });
+				}
+			}
+		} catch {
+			nativeBarcodeDetector = null;
+		}
+	}
+
 	async function startQRScan() {
 		scanError = '';
+		await initBarcodeDetector();
 		try {
 			if (!navigator.mediaDevices?.getUserMedia) {
 				throw new Error(
@@ -307,47 +328,70 @@
 			const ctx = canvas.getContext('2d', { willReadFrequently: true });
 			if (!ctx) throw new Error('Cannot get canvas context');
 
-			function scanFrame() {
+			async function scanFrame() {
 				if (!scanning || !scanVideoEl) return;
 
-				const vw = scanVideoEl.videoWidth;
-				const vh = scanVideoEl.videoHeight;
-
-				if (vw && vh) {
-					// Downscale for faster jsQR processing (especially helps on Safari iOS)
-					const scale = Math.min(1, SCAN_MAX_DIM / Math.max(vw, vh));
-					const sw = Math.round(vw * scale);
-					const sh = Math.round(vh * scale);
-					canvas!.width = sw;
-					canvas!.height = sh;
-					ctx!.drawImage(scanVideoEl!, 0, 0, sw, sh);
-
-					const imageData = ctx!.getImageData(0, 0, sw, sh);
-
-					// Skip blank frames (Safari sometimes returns all-zero data initially)
-					let hasData = false;
-					for (let i = 0; i < Math.min(imageData.data.length, 1000); i += 4) {
-						if (imageData.data[i] || imageData.data[i+1] || imageData.data[i+2]) {
-							hasData = true;
-							break;
-						}
-					}
-
-					if (hasData) {
-						const result = jsQR(imageData.data, sw, sh, { inversionAttempts: 'attemptBoth' });
-						if (result?.data) {
+				try {
+					// Prefer native BarcodeDetector (Safari iOS 17.2+, Chrome 83+)
+					// Uses the same engine as the Camera app — no canvas needed
+					if (nativeBarcodeDetector) {
+						const barcodes = await nativeBarcodeDetector.detect(scanVideoEl);
+						if (barcodes.length > 0 && barcodes[0].rawValue) {
 							stopQRScan();
-							importInput = result.data;
+							importInput = barcodes[0].rawValue;
 							handleImport();
 							return;
 						}
+					} else {
+						// Fallback: jsQR via canvas (Firefox, older Safari)
+						const vw = scanVideoEl.videoWidth;
+						const vh = scanVideoEl.videoHeight;
+
+						if (vw && vh) {
+							const scale = Math.min(1, SCAN_MAX_DIM / Math.max(vw, vh));
+							const sw = Math.round(vw * scale);
+							const sh = Math.round(vh * scale);
+							canvas!.width = sw;
+							canvas!.height = sh;
+
+							// Use createImageBitmap for better Safari compat
+							try {
+								const bitmap = await createImageBitmap(scanVideoEl!);
+								ctx!.drawImage(bitmap, 0, 0, sw, sh);
+								bitmap.close();
+							} catch {
+								ctx!.drawImage(scanVideoEl!, 0, 0, sw, sh);
+							}
+
+							const imageData = ctx!.getImageData(0, 0, sw, sh);
+
+							// Skip blank frames
+							let hasData = false;
+							for (let i = 0; i < Math.min(imageData.data.length, 1000); i += 4) {
+								if (imageData.data[i] || imageData.data[i+1] || imageData.data[i+2]) {
+									hasData = true;
+									break;
+								}
+							}
+
+							if (hasData) {
+								const result = jsQR(imageData.data, sw, sh, { inversionAttempts: 'attemptBoth' });
+								if (result?.data) {
+									stopQRScan();
+									importInput = result.data;
+									handleImport();
+									return;
+								}
+							}
+						}
 					}
+				} catch {
+					// Frame processing error — continue scanning
 				}
 
-				// Use setTimeout instead of rAF — Safari throttles rAF in some contexts
-				scanTimer = setTimeout(scanFrame, 150);
+				scanTimer = setTimeout(scanFrame, 200);
 			}
-			// Small initial delay to let Safari's video pipeline warm up
+			// Initial delay to let video pipeline warm up
 			scanTimer = setTimeout(scanFrame, 500);
 		} catch (e) {
 			const msg = e instanceof Error ? e.message : String(e);
