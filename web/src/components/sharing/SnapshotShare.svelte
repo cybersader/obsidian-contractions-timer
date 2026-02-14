@@ -127,16 +127,24 @@
 		}
 	}
 
+	let qrError = $state('');
+
 	async function handleQrCode() {
 		activeShareMethod = 'qr';
 		qrDataUrl = '';
+		qrError = '';
 		try {
 			const code = await ensureCompressed();
-			if (!isQRCompatible(code)) return;
+			if (!isQRCompatible(code)) {
+				qrError = `Session data too large for QR code (${code.length + 40} chars, max ~2900). Use copy link or short code instead.`;
+				return;
+			}
 			const url = generateSnapshotUrl(code);
 			qrDataUrl = await QRCodeToDataURL(url);
 		} catch (e) {
-			console.error('[SnapshotShare] handleQrCode failed:', e);
+			const msg = e instanceof Error ? e.message : String(e);
+			console.error('[SnapshotShare] handleQrCode failed:', msg);
+			qrError = `QR generation failed: ${msg}`;
 		} finally {
 			activeShareMethod = null;
 		}
@@ -541,6 +549,10 @@
 					</button>
 					<p class="qr-hint">Tap to enlarge</p>
 				</div>
+			{/if}
+
+			{#if qrError}
+				<div class="error-banner">{qrError}</div>
 			{/if}
 
 			<!-- Copy feedback toast -->
