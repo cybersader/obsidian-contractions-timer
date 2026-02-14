@@ -1,10 +1,9 @@
 /**
- * Lazy-loaded QR code generation.
- * Keeps the qrcode library out of the main bundle.
+ * QR code generation (static import — avoids dynamic chunk fetch failures in PWA).
  */
+import QRCode from 'qrcode';
 
 export async function QRCodeToDataURL(text: string): Promise<string> {
-	const QRCode = await import('qrcode');
 	return QRCode.toDataURL(text, {
 		width: 200,
 		margin: 2,
