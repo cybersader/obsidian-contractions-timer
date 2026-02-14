@@ -337,19 +337,31 @@
 	async function startQRScan(target: 'answer' | 'offer' | 'room') {
 		scanError = '';
 		try {
-			const stream = await navigator.mediaDevices.getUserMedia({
-				video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
-			});
+			if (!navigator.mediaDevices?.getUserMedia) {
+				throw new Error(
+					window.isSecureContext === false
+						? 'Camera requires HTTPS. This page is not in a secure context.'
+						: 'Camera API not available in this browser.'
+				);
+			}
+
+			let stream: MediaStream;
+			try {
+				stream = await navigator.mediaDevices.getUserMedia({
+					video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
+				});
+			} catch {
+				stream = await navigator.mediaDevices.getUserMedia({ video: true });
+			}
 			scanStream = stream;
 			scanning = true;
 
-			// Wait for Svelte to render the video/canvas elements
-			await new Promise(r => setTimeout(r, 200));
+			await new Promise(r => setTimeout(r, 300));
 			if (scanVideoEl) {
 				scanVideoEl.srcObject = stream;
 				await scanVideoEl.play();
 			} else {
-				throw new Error('Video element not available');
+				throw new Error('Video element not available after 300ms');
 			}
 
 			const canvas = scanCanvasEl;
