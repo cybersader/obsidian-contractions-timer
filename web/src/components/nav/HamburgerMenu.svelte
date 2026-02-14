@@ -120,7 +120,7 @@
 				<button class="drawer-back" onclick={() => activeTab = 'menu'} aria-label="Back to menu">
 					<ChevronLeft size={20} />
 				</button>
-				<span class="drawer-title">Share session</span>
+				<span class="drawer-title">Sharing</span>
 			{:else if activeTab === 'settings'}
 				<button class="drawer-back" onclick={() => activeTab = 'menu'} aria-label="Back to menu">
 					<ChevronLeft size={20} />
@@ -159,7 +159,7 @@
 					<button class="menu-item" onclick={() => activeTab = 'sharing'}>
 						<Share2 size={20} />
 						<div class="menu-item-text">
-							<span>Share session</span>
+							<span>Sharing</span>
 							{#if $isP2PActive}
 								<span class="menu-item-hint">Connected ({$peerCount} peers)</span>
 							{/if}
