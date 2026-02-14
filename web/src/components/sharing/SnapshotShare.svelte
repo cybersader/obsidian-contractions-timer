@@ -236,6 +236,9 @@
 		}
 	}
 
+	// --- Fullscreen QR viewer (tap to enlarge) ---
+	let fullscreenQr = $state('');
+
 	// --- QR Scanner (receive, jsQR-based for cross-browser support) ---
 	let scanning = $state(false);
 	let scanError = $state('');
@@ -502,10 +505,10 @@
 			<!-- QR code result -->
 			{#if qrDataUrl}
 				<div class="qr-result">
-					<div class="qr-container">
+					<button class="qr-container" onclick={() => fullscreenQr = qrDataUrl} aria-label="Tap to enlarge QR code">
 						<img src={qrDataUrl} alt="QR code for snapshot" class="qr-image" />
-					</div>
-					<p class="qr-hint">Scan to import this snapshot</p>
+					</button>
+					<p class="qr-hint">Tap to enlarge</p>
 				</div>
 			{/if}
 
@@ -661,6 +664,15 @@
 			</div>
 		{/if}
 	</div>
+	{/if}
+
+	{#if fullscreenQr}
+		<button class="qr-fullscreen" onclick={() => fullscreenQr = ''} aria-label="Close enlarged QR code">
+			<div class="qr-fullscreen-card">
+				<img src={fullscreenQr} alt="QR code (enlarged)" class="qr-fullscreen-img" />
+			</div>
+			<p class="qr-fullscreen-hint">Tap anywhere to close</p>
+		</button>
 	{/if}
 </div>
 
@@ -976,6 +988,14 @@
 		padding: var(--space-3);
 		background: white;
 		border-radius: var(--radius-lg);
+		border: none;
+		cursor: pointer;
+		-webkit-tap-highlight-color: transparent;
+		transition: transform 150ms;
+	}
+
+	.qr-container:active {
+		transform: scale(0.97);
 	}
 
 	.qr-image {
@@ -987,6 +1007,44 @@
 	.qr-hint {
 		font-size: var(--text-xs);
 		color: var(--text-faint);
+		margin: 0;
+	}
+
+	/* --- Fullscreen QR viewer --- */
+
+	.qr-fullscreen {
+		position: fixed;
+		inset: 0;
+		z-index: 200;
+		background: rgba(0, 0, 0, 0.85);
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: var(--space-4);
+		border: none;
+		cursor: pointer;
+		-webkit-tap-highlight-color: transparent;
+		animation: fadeIn 200ms ease-out;
+	}
+
+	.qr-fullscreen-card {
+		background: white;
+		border-radius: var(--radius-lg);
+		padding: var(--space-4);
+		max-width: min(85vw, 85vh);
+	}
+
+	.qr-fullscreen-img {
+		width: min(75vw, 75vh);
+		height: min(75vw, 75vh);
+		image-rendering: pixelated;
+		display: block;
+	}
+
+	.qr-fullscreen-hint {
+		color: rgba(255, 255, 255, 0.6);
+		font-size: var(--text-sm);
 		margin: 0;
 	}
 

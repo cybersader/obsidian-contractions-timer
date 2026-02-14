@@ -102,6 +102,7 @@
 	}
 
 	// --- Shared state ---
+	let fullscreenQr = $state('');
 	let qrDataUrl = $state('');
 	let answerQrDataUrl = $state('');
 	let copyFeedback = $state('');
@@ -485,9 +486,10 @@
 			<div class="step-label">Step 1: Share this with your partner</div>
 
 			{#if qrDataUrl}
-				<div class="qr-container">
+				<button class="qr-container" onclick={() => fullscreenQr = qrDataUrl} aria-label="Tap to enlarge QR code">
 					<img src={qrDataUrl} alt="QR code for private invite" class="qr-image" />
-				</div>
+				</button>
+				<p class="qr-tap-hint">Tap to enlarge</p>
 			{/if}
 
 			{#if offerCode}
@@ -543,9 +545,10 @@
 				<div class="step-label">Send this code back to your partner</div>
 
 				{#if answerQrDataUrl}
-					<div class="qr-container">
+					<button class="qr-container" onclick={() => fullscreenQr = answerQrDataUrl} aria-label="Tap to enlarge QR code">
 						<img src={answerQrDataUrl} alt="QR code for response code" class="qr-image" />
-					</div>
+					</button>
+					<p class="qr-tap-hint">Tap to enlarge</p>
 				{/if}
 
 				<div class="code-box">
@@ -1023,9 +1026,10 @@
 		<div class="sharing-section">
 			{#if status === 'hosting' && shareMode === 'quick'}
 				{#if qrDataUrl}
-					<div class="qr-container">
+					<button class="qr-container" onclick={() => fullscreenQr = qrDataUrl} aria-label="Tap to enlarge QR code">
 						<img src={qrDataUrl} alt="QR code for room {roomCode}" class="qr-image" />
-					</div>
+					</button>
+					<p class="qr-tap-hint">Tap to enlarge</p>
 				{/if}
 
 				<div class="code-box">
@@ -1193,6 +1197,15 @@
 		</div>
 	{:else}
 		<canvas bind:this={scanCanvasEl} class="scan-canvas"></canvas>
+	{/if}
+
+	{#if fullscreenQr}
+		<button class="qr-fullscreen" onclick={() => fullscreenQr = ''} aria-label="Close enlarged QR code">
+			<div class="qr-fullscreen-card">
+				<img src={fullscreenQr} alt="QR code (enlarged)" class="qr-fullscreen-img" />
+			</div>
+			<p class="qr-fullscreen-hint">Tap anywhere to close</p>
+		</button>
 	{/if}
 </div>
 
@@ -1842,12 +1855,65 @@
 		background: white;
 		border-radius: var(--radius-lg);
 		align-self: center;
+		border: none;
+		cursor: pointer;
+		-webkit-tap-highlight-color: transparent;
+		transition: transform 150ms;
+	}
+
+	.qr-container:active {
+		transform: scale(0.97);
 	}
 
 	.qr-image {
 		width: 200px;
 		height: 200px;
 		image-rendering: pixelated;
+	}
+
+	.qr-tap-hint {
+		font-size: var(--text-xs);
+		color: var(--text-faint);
+		text-align: center;
+		margin: 0;
+		margin-top: calc(-1 * var(--space-1));
+	}
+
+	/* Fullscreen QR viewer */
+	.qr-fullscreen {
+		position: fixed;
+		inset: 0;
+		z-index: 200;
+		background: rgba(0, 0, 0, 0.85);
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: var(--space-4);
+		border: none;
+		cursor: pointer;
+		-webkit-tap-highlight-color: transparent;
+		animation: fadeIn 200ms ease-out;
+	}
+
+	.qr-fullscreen-card {
+		background: white;
+		border-radius: var(--radius-lg);
+		padding: var(--space-4);
+		max-width: min(85vw, 85vh);
+	}
+
+	.qr-fullscreen-img {
+		width: min(75vw, 75vh);
+		height: min(75vw, 75vh);
+		image-rendering: pixelated;
+		display: block;
+	}
+
+	.qr-fullscreen-hint {
+		color: rgba(255, 255, 255, 0.6);
+		font-size: var(--text-sm);
+		margin: 0;
 	}
 
 	/* Code display */
