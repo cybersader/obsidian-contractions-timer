@@ -179,7 +179,7 @@
 				<button class="drawer-back" onclick={() => activeTab = 'menu'} aria-label="Back to menu">
 					<ChevronLeft size={20} />
 				</button>
-				<span class="drawer-title">Prayers & saints</span>
+				<span class="drawer-title">Prayers</span>
 			{:else}
 				<button class="drawer-back" onclick={() => activeTab = 'menu'} aria-label="Back to menu">
 					<ChevronLeft size={20} />
@@ -570,7 +570,7 @@
 
 	.menu-item-hint {
 		font-size: var(--text-xs);
-		color: var(--text-faint);
+		color: var(--text-muted);
 		font-weight: 400;
 	}
 
@@ -755,7 +755,7 @@
 		font-weight: 700;
 		text-transform: uppercase;
 		letter-spacing: 0.05em;
-		color: var(--text-faint);
+		color: var(--text-secondary);
 		margin-bottom: var(--space-3);
 	}
 
@@ -823,7 +823,7 @@
 		font-weight: 700;
 		text-transform: uppercase;
 		letter-spacing: 0.05em;
-		color: var(--text-faint);
+		color: var(--text-secondary);
 		margin-bottom: var(--space-2);
 	}
 

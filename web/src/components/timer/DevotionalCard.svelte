@@ -162,17 +162,6 @@
 </script>
 
 <div class="devotional-page">
-	<div class="saints-section">
-		<h4 class="devotional-heading">Patron Saints of Childbirth</h4>
-		{#each saints as saint}
-			<div class="saint-entry">
-				<span class="saint-name">{saint.name}</span>
-				<span class="saint-title">{saint.title}</span>
-				<p class="saint-detail">{saint.detail}</p>
-			</div>
-		{/each}
-	</div>
-
 	<div class="prayers-section">
 		<h4 class="devotional-heading">Prayers & Scripture</h4>
 		<div class="prayer-tabs-scroll">
@@ -199,6 +188,17 @@
 			<p class="prayer-text">{prayers[selectedPrayer].text}</p>
 			<span class="prayer-attribution">&mdash; {prayers[selectedPrayer].attribution}</span>
 		</div>
+	</div>
+
+	<div class="saints-section">
+		<h4 class="devotional-heading">Patron Saints of Childbirth</h4>
+		{#each saints as saint}
+			<div class="saint-entry">
+				<span class="saint-name">{saint.name}</span>
+				<span class="saint-title">{saint.title}</span>
+				<p class="saint-detail">{saint.detail}</p>
+			</div>
+		{/each}
 	</div>
 
 	<p class="devotional-footer">

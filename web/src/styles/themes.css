@@ -963,16 +963,16 @@ html[data-theme="warm-mid"] {
 	--text-primary: #f5e6c8;
 	--text-secondary: #dcc8a0;
 	--text-muted: rgba(245, 230, 200, 0.65);
-	--text-faint: rgba(245, 230, 200, 0.42);
-	--accent: #c4880e;
+	--text-faint: rgba(245, 230, 200, 0.58);
+	--accent: #e8a820;
 	--accent-dim: #a06e08;
-	--accent-muted: rgba(196, 136, 14, 0.18);
+	--accent-muted: rgba(232, 168, 32, 0.18);
 	--success: #3d8b37;
 	--success-muted: rgba(61, 139, 55, 0.18);
 	--warning: #c49a1a;
 	--warning-muted: rgba(196, 154, 26, 0.18);
-	--danger: #b83230;
-	--danger-muted: rgba(184, 50, 48, 0.18);
+	--danger: #f06060;
+	--danger-muted: rgba(240, 96, 96, 0.18);
 	--water: #3565a8;
 	--water-muted: rgba(53, 101, 168, 0.18);
 	--border: rgba(196, 136, 14, 0.25);
@@ -1092,17 +1092,17 @@ html[data-theme="forest-mid"] {
 	--text-primary: #f0f5ea;
 	--text-secondary: #d4e4c4;
 	--text-muted: rgba(240, 245, 234, 0.68);
-	--text-faint: rgba(240, 245, 234, 0.45);
+	--text-faint: rgba(240, 245, 234, 0.58);
 	/* Mossy green accent — NOT gold like Cathedral */
-	--accent: #5d9e3e;
-	--accent-dim: #3d7a2e;
-	--accent-muted: rgba(93, 158, 62, 0.18);
+	--accent: #7cb850;
+	--accent-dim: #5da040;
+	--accent-muted: rgba(124, 184, 80, 0.18);
 	--success: #6b8e23;
 	--success-muted: rgba(107, 142, 35, 0.18);
 	--warning: #c4a030;
 	--warning-muted: rgba(196, 160, 48, 0.18);
-	--danger: #b83232;
-	--danger-muted: rgba(184, 50, 50, 0.18);
+	--danger: #f06060;
+	--danger-muted: rgba(240, 96, 96, 0.18);
 	--water: #4682b4;
 	--water-muted: rgba(70, 130, 180, 0.18);
 	--border: rgba(93, 158, 62, 0.22);
@@ -1967,13 +1967,49 @@ html[data-theme="warm-mid"] [class*="location-"],
 html[data-theme="warm-mid"] [class*="intensity"],
 html[data-theme="warm-mid"] [class*="pause"],
 html[data-theme="warm-mid"] [class*="onboarding"],
+html[data-theme="warm-mid"] [class*="devtools"],
+html[data-theme="warm-mid"] [class*="seed"],
+html[data-theme="warm-mid"] [class*="palette"],
+html[data-theme="warm-mid"] [class*="about-"],
+html[data-theme="warm-mid"] [class*="setting-"],
+html[data-theme="warm-mid"] [class*="toggle"],
+html[data-theme="warm-mid"] [class*="archive"],
+html[data-theme="warm-mid"] [class*="timer-display"],
+html[data-theme="warm-mid"] [class*="post-rating"],
+html[data-theme="warm-mid"] [class*="advisor"],
+html[data-theme="warm-mid"] [class*="clinical"],
+html[data-theme="warm-mid"] [class*="water-break"],
+html[data-theme="warm-mid"] [class*="labor-guide"],
+html[data-theme="warm-mid"] [class*="threshold"],
+html[data-theme="warm-mid"] [class*="trend"],
+html[data-theme="warm-mid"] [class*="progression"],
+html[data-theme="warm-mid"] [class*="summary"],
+html[data-theme="warm-mid"] [class*="wave-"],
 html[data-theme="warm-mid"] .card,
 html[data-theme="warm-mid"] .card-elevated {
 	--text-primary: #2c1503;
 	--text-secondary: #5c3a1a;
 	--text-muted: rgba(44, 21, 3, 0.65);
 	--text-faint: rgba(44, 21, 3, 0.42);
+	--accent: #8b5e14;
+	--danger: #b83230;
 	color: #2c1503;
+}
+
+/* Form elements inside card containers need explicit dark text */
+html[data-theme="warm-mid"] [class*="card"] input,
+html[data-theme="warm-mid"] [class*="card"] select,
+html[data-theme="warm-mid"] [class*="card"] textarea,
+html[data-theme="warm-mid"] [class*="editor"] input,
+html[data-theme="warm-mid"] [class*="editor"] select,
+html[data-theme="warm-mid"] [class*="history"] input,
+html[data-theme="warm-mid"] [class*="history"] select,
+html[data-theme="warm-mid"] [class*="setting"] input,
+html[data-theme="warm-mid"] [class*="setting"] select,
+html[data-theme="warm-mid"] [class*="devtools"] input,
+html[data-theme="warm-mid"] [class*="devtools"] select {
+	color: #2c1503;
+	-webkit-text-fill-color: #2c1503;
 }
 
 html[data-theme="warm-mid"] .card {
@@ -2379,13 +2415,49 @@ html[data-theme="forest-mid"] [class*="location-"],
 html[data-theme="forest-mid"] [class*="intensity"],
 html[data-theme="forest-mid"] [class*="pause"],
 html[data-theme="forest-mid"] [class*="onboarding"],
+html[data-theme="forest-mid"] [class*="devtools"],
+html[data-theme="forest-mid"] [class*="seed"],
+html[data-theme="forest-mid"] [class*="palette"],
+html[data-theme="forest-mid"] [class*="about-"],
+html[data-theme="forest-mid"] [class*="setting-"],
+html[data-theme="forest-mid"] [class*="toggle"],
+html[data-theme="forest-mid"] [class*="archive"],
+html[data-theme="forest-mid"] [class*="timer-display"],
+html[data-theme="forest-mid"] [class*="post-rating"],
+html[data-theme="forest-mid"] [class*="advisor"],
+html[data-theme="forest-mid"] [class*="clinical"],
+html[data-theme="forest-mid"] [class*="water-break"],
+html[data-theme="forest-mid"] [class*="labor-guide"],
+html[data-theme="forest-mid"] [class*="threshold"],
+html[data-theme="forest-mid"] [class*="trend"],
+html[data-theme="forest-mid"] [class*="progression"],
+html[data-theme="forest-mid"] [class*="summary"],
+html[data-theme="forest-mid"] [class*="wave-"],
 html[data-theme="forest-mid"] .card,
 html[data-theme="forest-mid"] .card-elevated {
 	--text-primary: #14261a;
 	--text-secondary: #264d2e;
 	--text-muted: rgba(20, 38, 26, 0.65);
 	--text-faint: rgba(20, 38, 26, 0.42);
+	--accent: #2d6e1a;
+	--danger: #b83232;
 	color: #14261a;
+}
+
+/* Form elements inside card containers need explicit dark text */
+html[data-theme="forest-mid"] [class*="card"] input,
+html[data-theme="forest-mid"] [class*="card"] select,
+html[data-theme="forest-mid"] [class*="card"] textarea,
+html[data-theme="forest-mid"] [class*="editor"] input,
+html[data-theme="forest-mid"] [class*="editor"] select,
+html[data-theme="forest-mid"] [class*="history"] input,
+html[data-theme="forest-mid"] [class*="history"] select,
+html[data-theme="forest-mid"] [class*="setting"] input,
+html[data-theme="forest-mid"] [class*="setting"] select,
+html[data-theme="forest-mid"] [class*="devtools"] input,
+html[data-theme="forest-mid"] [class*="devtools"] select {
+	color: #14261a;
+	-webkit-text-fill-color: #14261a;
 }
 
 html[data-theme="forest-mid"] .card {

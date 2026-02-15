@@ -241,16 +241,6 @@
 			<span class="toggle-slider"></span>
 		</label>
 	</div>
-	<div class="setting-row">
-		<div class="setting-label-group">
-			<span id="label-prayers" class="setting-label">Prayers</span>
-			<span class="setting-hint">Show the Prayers tab in the menu on all themes. Always shown on Cathedral and Shire themes.</span>
-		</div>
-		<label class="toggle" aria-labelledby="label-prayers">
-			<input type="checkbox" bind:checked={$settings.showPrayers} />
-			<span class="toggle-slider"></span>
-		</label>
-	</div>
 
 	<!-- Advisor -->
 	<div class="section-title" id="settings-advisor">Advisor</div>
@@ -391,6 +381,19 @@
 		<!-- Reset -->
 		<button class="reset-btn" onclick={resetAdvanced}>Reset advanced to defaults</button>
 	{/if}
+
+	<!-- Extras -->
+	<div class="section-title" id="settings-extras">Extras</div>
+	<div class="setting-row">
+		<div class="setting-label-group">
+			<span id="label-prayers" class="setting-label">Prayers</span>
+			<span class="setting-hint">Show the Prayers tab in the menu. Always visible on Cathedral and Shire themes.</span>
+		</div>
+		<label class="toggle" aria-labelledby="label-prayers">
+			<input type="checkbox" bind:checked={$settings.showPrayers} />
+			<span class="toggle-slider"></span>
+		</label>
+	</div>
 </div>
 
 <style>
