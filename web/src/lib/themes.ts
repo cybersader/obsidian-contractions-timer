@@ -116,15 +116,18 @@ export function getThemeInfo(id: ThemeId): ThemeInfo | undefined {
 }
 
 /** Palette preview colors for the theme picker */
-export const PALETTE_PREVIEWS: Record<ThemePalette, { primary: string; accent: string; bg: string; bgLight: string; bgMid: string }> = {
-	clinical: { primary: '#3b82f6', accent: '#0ea5e9', bg: '#0f172a', bgLight: '#f0f4f8', bgMid: '#0a1a14' },
-	soft: { primary: '#818cf8', accent: '#a78bfa', bg: '#1a1625', bgLight: '#f5f3ff', bgMid: '#7c5eaa' },
-	warm: { primary: '#c4880e', accent: '#d4a030', bg: '#1c1917', bgLight: '#fefce8', bgMid: '#1a1008' },
-	ocean: { primary: '#2dd4bf', accent: '#14b8a6', bg: '#0c1b2a', bgLight: '#e8f4f7', bgMid: '#071c25' },
-	forest: { primary: '#5d9e3e', accent: '#3d7a2e', bg: '#101a14', bgLight: '#eef5e8', bgMid: '#0e1a0e' },
-	sunset: { primary: '#fb923c', accent: '#f97316', bg: '#1a1210', bgLight: '#fff7ed', bgMid: '#1a0a2e' },
-	lavender: { primary: '#c084fc', accent: '#a855f7', bg: '#16101f', bgLight: '#faf5ff', bgMid: '#e2e8f4' },
-	midnight: { primary: '#60a5fa', accent: '#3b82f6', bg: '#080d18', bgLight: '#eef2ff', bgMid: '#0c0c1e' },
-	sky: { primary: '#38bdf8', accent: '#0284c7', bg: '#0c1929', bgLight: '#e8f4fd', bgMid: '#72b4d8' },
-	blush: { primary: '#f472b6', accent: '#db2777', bg: '#1a0b14', bgLight: '#fdf2f8', bgMid: '#3a1028' },
+export const PALETTE_PREVIEWS: Record<ThemePalette, {
+	primary: string; accent: string; bg: string; bgLight: string; bgMid: string;
+	primaryMid?: string; accentMid?: string;
+}> = {
+	clinical: { primary: '#3b82f6', accent: '#0ea5e9', bg: '#0f172a', bgLight: '#f0f4f8', bgMid: '#0a1a14', primaryMid: '#4ade80', accentMid: '#22c55e' },
+	soft: { primary: '#818cf8', accent: '#a78bfa', bg: '#1a1625', bgLight: '#f5f3ff', bgMid: '#7c5eaa', primaryMid: '#a78bfa', accentMid: '#c4b5fd' },
+	warm: { primary: '#c4880e', accent: '#d4a030', bg: '#1c1917', bgLight: '#fefce8', bgMid: '#1a1008', primaryMid: '#e8a820', accentMid: '#c4880e' },
+	ocean: { primary: '#2dd4bf', accent: '#14b8a6', bg: '#0c1b2a', bgLight: '#e8f4f7', bgMid: '#071c25', primaryMid: '#2dd4bf', accentMid: '#0891b2' },
+	forest: { primary: '#5d9e3e', accent: '#3d7a2e', bg: '#101a14', bgLight: '#eef5e8', bgMid: '#0e1a0e', primaryMid: '#5d9e3e', accentMid: '#c4961e' },
+	sunset: { primary: '#fb923c', accent: '#f97316', bg: '#1a1210', bgLight: '#fff7ed', bgMid: '#1a0a2e', primaryMid: '#ec4899', accentMid: '#fb923c' },
+	lavender: { primary: '#c084fc', accent: '#a855f7', bg: '#16101f', bgLight: '#faf5ff', bgMid: '#e2e8f4', primaryMid: '#94a3b8', accentMid: '#c084fc' },
+	midnight: { primary: '#60a5fa', accent: '#3b82f6', bg: '#080d18', bgLight: '#eef2ff', bgMid: '#0c0c1e', primaryMid: '#60a5fa', accentMid: '#8b5cf6' },
+	sky: { primary: '#38bdf8', accent: '#0284c7', bg: '#0c1929', bgLight: '#e8f4fd', bgMid: '#72b4d8', primaryMid: '#38bdf8', accentMid: '#06b6d4' },
+	blush: { primary: '#f472b6', accent: '#db2777', bg: '#1a0b14', bgLight: '#fdf2f8', bgMid: '#3a1028', primaryMid: '#f472b6', accentMid: '#ec4899' },
 };

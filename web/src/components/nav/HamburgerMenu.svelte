@@ -10,6 +10,7 @@
 	import { SEED_SCENARIOS } from '../../lib/seedData';
 	import { debugEnabled, dlogCount, dlogDump, dlogClear } from '../../lib/debug-log';
 	import { isP2PActive, peerCount } from '../../lib/stores/p2p';
+	import { APP_VERSION } from '../../lib/version';
 	import SharingPanel from '../sharing/SharingPanel.svelte';
 	import DevotionalCard from '../timer/DevotionalCard.svelte';
 
@@ -243,9 +244,9 @@
 						<Info size={20} />
 						<span>About</span>
 					</button>
-					<a href="https://github.com/cybersader/obsidian-contractions-timer/issues/new" target="_blank" rel="noopener" class="menu-item menu-item--link">
+					<a href="https://github.com/cybersader/obsidian-contractions-timer/issues/new/choose" target="_blank" rel="noopener" class="menu-item menu-item--link">
 						<Bug size={20} />
-						<span>Report an issue</span>
+						<span>Feedback & issues</span>
 					</a>
 					{#if showDevotional}
 						<button class="menu-item menu-item--devotional" onclick={() => activeTab = 'devotional'}>
@@ -328,8 +329,8 @@
 							>
 								<div class="palette-swatches">
 									<div class="swatch" style="background: {currentMode === 'dark' ? preview.bg : currentMode === 'mid' ? preview.bgMid : preview.bgLight}"></div>
-									<div class="swatch" style="background: {preview.primary}"></div>
-									<div class="swatch" style="background: {preview.accent}"></div>
+									<div class="swatch" style="background: {currentMode === 'mid' && preview.primaryMid ? preview.primaryMid : preview.primary}"></div>
+									<div class="swatch" style="background: {currentMode === 'mid' && preview.accentMid ? preview.accentMid : preview.accent}"></div>
 								</div>
 								<span class="palette-name">{currentMode === 'mid' ? UNIQUE_MODE_LABELS[palette] : palette[0].toUpperCase() + palette.slice(1)}</span>
 							</button>
@@ -440,7 +441,7 @@
 						<Clock size={28} />
 					</div>
 					<h3 class="about-name">Contraction Timer</h3>
-					<p class="about-version">v0.1.0</p>
+					<p class="about-version">v{APP_VERSION}</p>
 					<p class="about-desc">Track contractions, assess labor patterns, know when to go to the hospital.</p>
 					<div class="about-features">
 						<div class="about-feature">Live timer with wave chart</div>
@@ -456,8 +457,8 @@
 						<a href="https://github.com/cybersader/obsidian-contractions-timer" target="_blank" rel="noopener" class="about-link">
 							GitHub
 						</a>
-						<a href="https://github.com/cybersader/obsidian-contractions-timer/issues" target="_blank" rel="noopener" class="about-link">
-							Report an issue
+						<a href="https://github.com/cybersader/obsidian-contractions-timer/issues/new/choose" target="_blank" rel="noopener" class="about-link">
+							Feedback & issues
 						</a>
 					</div>
 				</div>

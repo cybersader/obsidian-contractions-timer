@@ -32,13 +32,14 @@
 		<span class="pause-label">Tap to resume</span>
 	</button>
 {:else if canPause}
-	<!-- Resting: invisible tappable area, icon only on hover (desktop) -->
+	<!-- Resting: invisible tappable area, subtle periodic hint -->
 	<button
 		class="pause-overlay resting"
 		onclick={handleClick}
 		aria-label="Pause timer"
 	>
 		<span class="pause-icon"><Pause size={28} /></span>
+		<span class="pause-hint">tap to pause</span>
 	</button>
 {/if}
 
@@ -63,7 +64,7 @@
 	/* --- Resting (not paused): hidden by default --- */
 	.pause-overlay.resting .pause-icon {
 		color: var(--text-primary);
-		opacity: 0.15;
+		opacity: 0;
 		transition: opacity var(--transition-base);
 	}
 
@@ -75,11 +76,43 @@
 		.pause-overlay.resting:hover .pause-icon {
 			opacity: 0.5;
 		}
+		.pause-overlay.resting:hover .pause-hint {
+			opacity: 0 !important;
+			animation: none;
+		}
 	}
 
 	/* Touch active feedback */
 	.pause-overlay.resting:active {
 		background: var(--bg-card-hover);
+	}
+
+	/* --- Periodic hint --- */
+	.pause-hint {
+		position: absolute;
+		bottom: var(--space-1);
+		font-size: 10px;
+		color: var(--text-faint);
+		font-weight: 500;
+		letter-spacing: 0.03em;
+		opacity: 0;
+		animation: pause-hint-pulse 30s ease-in-out infinite;
+		animation-delay: 12s;
+		pointer-events: none;
+	}
+
+	@keyframes pause-hint-pulse {
+		0%, 90% { opacity: 0; }
+		94% { opacity: 0.45; }
+		97% { opacity: 0.45; }
+		100% { opacity: 0; }
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.pause-hint {
+			animation: none;
+			opacity: 0;
+		}
 	}
 
 	/* --- Paused: full overlay --- */

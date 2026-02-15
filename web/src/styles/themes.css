@@ -1804,7 +1804,25 @@ html[data-theme="soft-mid"] .untimed-form,
 html[data-theme="soft-mid"] .collapsible,
 html[data-theme="soft-mid"] .location-pill,
 html[data-theme="soft-mid"] .time-picker,
-html[data-theme="soft-mid"] .time-range-card {
+html[data-theme="soft-mid"] .time-range-card,
+html[data-theme="soft-mid"] .empty-state,
+html[data-theme="soft-mid"] .empty-state-icon,
+html[data-theme="soft-mid"] .action-card,
+html[data-theme="soft-mid"] .live-card,
+html[data-theme="soft-mid"] .private-explainer,
+html[data-theme="soft-mid"] .mode-tabs,
+html[data-theme="soft-mid"] .sharing-input,
+html[data-theme="soft-mid"] .sharing-select,
+html[data-theme="soft-mid"] .advanced-section,
+html[data-theme="soft-mid"] .btn-secondary,
+html[data-theme="soft-mid"] .code-row,
+html[data-theme="soft-mid"] .peer-list-header,
+html[data-theme="soft-mid"] .expand-section,
+html[data-theme="soft-mid"] .receive-methods,
+html[data-theme="soft-mid"] .share-method-row,
+html[data-theme="soft-mid"] .preview-card,
+html[data-theme="soft-mid"] .result-card,
+html[data-theme="soft-mid"] .mode-radio {
 	--text-primary: #0f0a2a;
 	--text-secondary: #1e1545;
 	--text-muted: rgba(15, 10, 42, 0.60);
@@ -1832,9 +1850,49 @@ html[data-theme="soft-mid"] .card textarea,
 html[data-theme="soft-mid"] .card-elevated input,
 html[data-theme="soft-mid"] .card-elevated select,
 html[data-theme="soft-mid"] .collapsible input,
-html[data-theme="soft-mid"] .collapsible select {
+html[data-theme="soft-mid"] .collapsible select,
+html[data-theme="soft-mid"] .time-picker input,
+html[data-theme="soft-mid"] .time-picker select {
 	color: #0f0a2a;
 	-webkit-text-fill-color: #0f0a2a;
+}
+
+/* --- Aurora share/receive buttons: frosted purple glass --- */
+html[data-theme="soft-mid"] .action-card {
+	background: rgba(26, 14, 46, 0.80);
+	border: 1.5px solid rgba(167, 139, 250, 0.40);
+	--text-primary: #a78bfa;
+	--text-faint: rgba(167, 139, 250, 0.55);
+	--accent: #a78bfa;
+	color: #a78bfa;
+}
+html[data-theme="soft-mid"] .action-card :global(svg) {
+	color: rgba(167, 139, 250, 0.85);
+}
+html[data-theme="soft-mid"] .live-card {
+	background: rgba(26, 14, 46, 0.75);
+	border: 1.5px solid rgba(167, 139, 250, 0.30);
+	--text-primary: #a78bfa;
+	--text-faint: rgba(167, 139, 250, 0.50);
+	--accent: #a78bfa;
+}
+html[data-theme="soft-mid"] .live-card :global(svg) {
+	color: rgba(167, 139, 250, 0.85);
+}
+html[data-theme="soft-mid"] .mode-radio {
+	background: rgba(26, 14, 46, 0.75);
+	border-color: rgba(167, 139, 250, 0.30);
+	--text-secondary: rgba(167, 139, 250, 0.75);
+	--accent: #a78bfa;
+}
+html[data-theme="soft-mid"] .mode-radio.mode-selected {
+	background: rgba(167, 139, 250, 0.20);
+	border-color: rgba(167, 139, 250, 0.55);
+}
+html[data-theme="soft-mid"] .btn-secondary {
+	background: rgba(26, 14, 46, 0.80);
+	border: 1px solid rgba(167, 139, 250, 0.35);
+	color: #a78bfa;
 }
 
 /* ============================================
@@ -2056,7 +2114,25 @@ html[data-theme="warm-mid"] .untimed-form,
 html[data-theme="warm-mid"] .collapsible,
 html[data-theme="warm-mid"] .location-pill,
 html[data-theme="warm-mid"] .time-picker,
-html[data-theme="warm-mid"] .time-range-card {
+html[data-theme="warm-mid"] .time-range-card,
+html[data-theme="warm-mid"] .empty-state,
+html[data-theme="warm-mid"] .empty-state-icon,
+html[data-theme="warm-mid"] .action-card,
+html[data-theme="warm-mid"] .live-card,
+html[data-theme="warm-mid"] .private-explainer,
+html[data-theme="warm-mid"] .mode-tabs,
+html[data-theme="warm-mid"] .sharing-input,
+html[data-theme="warm-mid"] .sharing-select,
+html[data-theme="warm-mid"] .advanced-section,
+html[data-theme="warm-mid"] .btn-secondary,
+html[data-theme="warm-mid"] .code-row,
+html[data-theme="warm-mid"] .peer-list-header,
+html[data-theme="warm-mid"] .expand-section,
+html[data-theme="warm-mid"] .receive-methods,
+html[data-theme="warm-mid"] .share-method-row,
+html[data-theme="warm-mid"] .preview-card,
+html[data-theme="warm-mid"] .result-card,
+html[data-theme="warm-mid"] .mode-radio {
 	--text-primary: #2c1503;
 	--text-secondary: #5c3a1a;
 	--text-muted: rgba(44, 21, 3, 0.65);
@@ -2085,7 +2161,9 @@ html[data-theme="warm-mid"] .card textarea,
 html[data-theme="warm-mid"] .card-elevated input,
 html[data-theme="warm-mid"] .card-elevated select,
 html[data-theme="warm-mid"] .collapsible input,
-html[data-theme="warm-mid"] .collapsible select {
+html[data-theme="warm-mid"] .collapsible select,
+html[data-theme="warm-mid"] .time-picker input,
+html[data-theme="warm-mid"] .time-picker select {
 	color: #2c1503;
 	-webkit-text-fill-color: #2c1503;
 }
@@ -2306,6 +2384,44 @@ html[data-theme="warm-mid"] [class*="btn"] {
 	text-overflow: ellipsis;
 }
 
+/* --- Cathedral share/receive buttons: golden outlines, dark bg --- */
+html[data-theme="warm-mid"] .action-card {
+	background: rgba(26, 16, 8, 0.85);
+	border: 1.5px solid rgba(196, 136, 14, 0.45);
+	--text-primary: #e8a820;
+	--text-faint: rgba(232, 168, 32, 0.50);
+	--accent: #e8a820;
+	color: #e8a820;
+}
+html[data-theme="warm-mid"] .action-card :global(svg) {
+	color: rgba(232, 168, 32, 0.80);
+}
+html[data-theme="warm-mid"] .live-card {
+	background: rgba(26, 16, 8, 0.85);
+	border: 1.5px solid rgba(196, 136, 14, 0.35);
+	--text-primary: #e8a820;
+	--text-faint: rgba(232, 168, 32, 0.45);
+	--accent: #e8a820;
+}
+html[data-theme="warm-mid"] .live-card :global(svg) {
+	color: rgba(232, 168, 32, 0.80);
+}
+html[data-theme="warm-mid"] .mode-radio {
+	background: rgba(26, 16, 8, 0.80);
+	border-color: rgba(196, 136, 14, 0.35);
+	--text-secondary: rgba(232, 168, 32, 0.70);
+	--accent: #e8a820;
+}
+html[data-theme="warm-mid"] .mode-radio.mode-selected {
+	background: rgba(196, 136, 14, 0.18);
+	border-color: rgba(232, 168, 32, 0.60);
+}
+html[data-theme="warm-mid"] .btn-secondary {
+	background: rgba(26, 16, 8, 0.80);
+	border: 1px solid rgba(196, 136, 14, 0.35);
+	color: #e8a820;
+}
+
 /* ============================================
    4. ABYSS (ocean-mid) — "Deep Ocean Bioluminescence"
    Near-black teal bg, dark cards, water caustics, bioluminescent glow
@@ -2505,12 +2621,30 @@ html[data-theme="forest-mid"] .untimed-form,
 html[data-theme="forest-mid"] .collapsible,
 html[data-theme="forest-mid"] .location-pill,
 html[data-theme="forest-mid"] .time-picker,
-html[data-theme="forest-mid"] .time-range-card {
+html[data-theme="forest-mid"] .time-range-card,
+html[data-theme="forest-mid"] .empty-state,
+html[data-theme="forest-mid"] .empty-state-icon,
+html[data-theme="forest-mid"] .action-card,
+html[data-theme="forest-mid"] .live-card,
+html[data-theme="forest-mid"] .private-explainer,
+html[data-theme="forest-mid"] .mode-tabs,
+html[data-theme="forest-mid"] .sharing-input,
+html[data-theme="forest-mid"] .sharing-select,
+html[data-theme="forest-mid"] .advanced-section,
+html[data-theme="forest-mid"] .btn-secondary,
+html[data-theme="forest-mid"] .code-row,
+html[data-theme="forest-mid"] .peer-list-header,
+html[data-theme="forest-mid"] .expand-section,
+html[data-theme="forest-mid"] .receive-methods,
+html[data-theme="forest-mid"] .share-method-row,
+html[data-theme="forest-mid"] .preview-card,
+html[data-theme="forest-mid"] .result-card,
+html[data-theme="forest-mid"] .mode-radio {
 	--text-primary: #14261a;
 	--text-secondary: #264d2e;
 	--text-muted: rgba(20, 38, 26, 0.65);
 	--text-faint: rgba(20, 38, 26, 0.42);
-	--accent: #2d6e1a;
+	--accent: #1a5010;
 	--danger: #b83232;
 	--success: #3d6b1a;
 	--warning: #8b6914;
@@ -2537,7 +2671,9 @@ html[data-theme="forest-mid"] .card textarea,
 html[data-theme="forest-mid"] .card-elevated input,
 html[data-theme="forest-mid"] .card-elevated select,
 html[data-theme="forest-mid"] .collapsible input,
-html[data-theme="forest-mid"] .collapsible select {
+html[data-theme="forest-mid"] .collapsible select,
+html[data-theme="forest-mid"] .time-picker input,
+html[data-theme="forest-mid"] .time-picker select {
 	color: #14261a;
 	-webkit-text-fill-color: #14261a;
 }
@@ -2707,6 +2843,43 @@ html[data-theme="forest-mid"] .btn-primary:active {
 	transition: box-shadow 150ms;
 }
 
+/* --- Shire share/receive buttons: mostly transparent, gold text --- */
+html[data-theme="forest-mid"] .action-card {
+	background: rgba(14, 26, 14, 0.70);
+	border: 1.5px solid rgba(196, 150, 30, 0.40);
+	--text-primary: #c4961e;
+	--text-faint: rgba(196, 150, 30, 0.55);
+	--accent: #c4961e;
+	color: #c4961e;
+}
+html[data-theme="forest-mid"] .action-card :global(svg) {
+	color: rgba(196, 150, 30, 0.85);
+}
+html[data-theme="forest-mid"] .live-card {
+	background: rgba(14, 26, 14, 0.70);
+	border: 1.5px solid rgba(196, 150, 30, 0.30);
+	--text-primary: #c4961e;
+	--text-faint: rgba(196, 150, 30, 0.50);
+	--accent: #c4961e;
+}
+html[data-theme="forest-mid"] .live-card :global(svg) {
+	color: rgba(196, 150, 30, 0.85);
+}
+html[data-theme="forest-mid"] .mode-radio {
+	background: rgba(14, 26, 14, 0.65);
+	border-color: rgba(196, 150, 30, 0.30);
+	--text-secondary: rgba(196, 150, 30, 0.75);
+	--accent: #c4961e;
+}
+html[data-theme="forest-mid"] .mode-radio.mode-selected {
+	background: rgba(196, 150, 30, 0.15);
+	border-color: rgba(196, 150, 30, 0.55);
+}
+html[data-theme="forest-mid"] .btn-secondary {
+	background: rgba(14, 26, 14, 0.65);
+	border: 1px solid rgba(196, 150, 30, 0.35);
+	color: #c4961e;
+}
 
 /* ============================================
    6. RETROWAVE (sunset-mid) — "80s Neon Synthwave"
